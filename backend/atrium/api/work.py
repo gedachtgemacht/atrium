@@ -22,7 +22,7 @@ from ..models import (
     WorkResult,
     WorkStatus,
 )
-from ..schemas import AgentOut, AskOut, DraftOut, MemoryOut, RoomOut, SearchHit, WorkResultOut
+from ..schemas import AgentOut, AskOut, DraftOut, MemoryOut, RoomsOut, SearchHit, WorkResultOut
 from ..serialize import attachment_out, messages_out, user_names, work_result_out
 from ..services import messages as svc
 from ..services.audit import audit
@@ -256,7 +256,8 @@ async def agents(actor: UserActor = Depends(current_user), session: AsyncSession
     return out
 
 
-@router.get("/rooms", response_model=list[RoomOut])
+@router.get("/rooms", response_model=RoomsOut)
 async def rooms(actor: UserActor = Depends(current_user), session: AsyncSession = Depends(get_session)):
-    rows = (await session.execute(select(Room).where(Room.org_id == actor.org_id).order_by(Room.position))).scalars()
-    return [RoomOut(id=r.id, name=r.name, kind=r.kind.value, layout=r.layout, position=r.position, channel_id=r.channel_id) for r in rows]
+    from .rooms_admin import rooms_out
+
+    return await rooms_out(session, actor)

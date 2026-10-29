@@ -1,5 +1,5 @@
 import { api, socketUrl } from '../lib/api'
-import type { Agent, Channel, Draft, Me, MemoryEntry, Message, Person, PresenceRoom, Room, WorkResult } from '../lib/types'
+import type { Agent, Channel, Draft, Floor, Me, MemoryEntry, Message, Person, PresenceRoom, Room, RoomsPlan, WorkResult } from '../lib/types'
 import { voice } from './voice.svelte'
 
 type Route = { view: 'channel'; id: string | null } | { view: 'admin' }
@@ -17,6 +17,7 @@ class Store {
   details = $state<Record<string, Channel>>({})
   agents = $state<Agent[]>([])
   rooms = $state<Room[]>([])
+  floors = $state<Floor[]>([])
   people = $state<Record<string, Person>>({})
   online = $state<string[]>([])
   presence = $state<PresenceRoom[]>([])
@@ -88,7 +89,11 @@ class Store {
     this.agents = await api<Agent[]>('/api/agents')
   }
   async loadRooms() {
-    this.rooms = await api<Room[]>('/api/rooms')
+    this.setPlan(await api<RoomsPlan>('/api/rooms'))
+  }
+  setPlan(p: RoomsPlan) {
+    this.rooms = p.rooms
+    this.floors = p.floors
   }
   async loadPeople() {
     const list = await api<Person[]>('/api/users')
@@ -216,6 +221,12 @@ class Store {
       case 'room.voice':
         if (e.url && e.token) voice.join(e.url, e.token)
         else voice.leave()
+        break
+      case 'rooms.updated':
+        this.loadRooms()
+        break
+      case 'error':
+        if (e.detail) this.toast(e.detail)
         break
       case 'channels.updated':
         this.loadChannels()

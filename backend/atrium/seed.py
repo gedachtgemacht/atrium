@@ -110,13 +110,16 @@ async def seed(db: Database, *, password: str, base_url: str, reset: bool = Fals
             for n in names:
                 s.add(ChannelMember(channel_id=ch.id, user_id=users[n].id))
 
-        for pos, (name, kind, layout, ch) in enumerate([
-            ("Dispatch", RoomKind.normal, "dispatch", dispatch),
-            ("Sales corner", RoomKind.normal, "sales", sales),
-            ("Warehouse office", RoomKind.normal, "warehouse", warehouse),
-            ("Quiet room", RoomKind.quiet, "quiet", None),
-        ]):
-            s.add(Room(org_id=org.id, name=name, kind=kind, layout=layout, position=pos, channel_id=ch.id if ch else None))
+        org.floors = [{"id": "main", "name": "Dortmund office", "columns": 2}]
+        for name, kind, (col, row, cs), ch in [
+            ("Dispatch", RoomKind.normal, (0, 0, 2), dispatch),
+            ("Sales corner", RoomKind.normal, (0, 1, 1), sales),
+            ("Warehouse office", RoomKind.normal, (1, 1, 1), warehouse),
+            ("Quiet room", RoomKind.quiet, (0, 2, 1), None),
+            ("Hallway", RoomKind.hallway, (1, 2, 1), None),
+        ]:
+            s.add(Room(org_id=org.id, name=name, kind=kind, floor_id="main", col=col, row=row, col_span=cs,
+                       channel_id=ch.id if ch else None))
 
         links = {}
         guests = {}

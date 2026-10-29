@@ -76,23 +76,30 @@ button.chip:hover{border-color:var(--muted)}
 .hint{margin:2px 0 10px;font-size:13px;color:var(--muted);line-height:1.4}
 .hint+.hint{margin-top:-6px}
 
-/* floor plan */
-.plan{display:grid;grid-template-columns:1.1fr 1fr;border:2px solid var(--plan);border-radius:3px;background:var(--surface);position:relative}
-.room{appearance:none;border:0;background:transparent;text-align:left;padding:9px 10px 10px;min-height:98px;position:relative;display:flex;flex-direction:column;gap:1px;transition:background-color .2s}
-button.room:hover{background:color-mix(in srgb,var(--plan) 7%,transparent)}
-.room-name{font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:13.5px;color:var(--plan);line-height:1.2}
+/* floor plan: a grid; the gaps between cells are the walls */
+.floors{display:flex;gap:4px;flex-wrap:wrap;margin:0 0 6px}
+.floors button{border:1px solid var(--line);background:var(--surface);border-radius:999px;font-size:12px;font-weight:600;padding:2px 10px;color:var(--muted)}
+.floors button[aria-pressed="true"]{border-color:var(--plan);color:var(--plan)}
+.plan{display:grid;grid-template-columns:repeat(var(--cols,2),minmax(0,1fr));gap:1.5px;background:var(--plan);border:2px solid var(--plan);border-radius:3px}
+.plan>*{min-width:0}
+.room{appearance:none;border:0;background:var(--surface);text-align:left;padding:9px 10px 10px;min-height:98px;position:relative;display:flex;flex-direction:column;gap:1px;transition:background-color .2s;color:inherit}
+.room.tall{min-height:116px}
+button.room:hover{background:color-mix(in srgb,var(--plan) 7%,var(--surface))}
+.room-name{font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:13.5px;color:var(--plan);line-height:1.2;display:flex;gap:5px;align-items:center}
 .room-meta{font-size:12px;color:var(--muted);line-height:1.3}
 .room-notes{display:flex;align-items:center;gap:4px;font-size:11.5px;font-weight:600;color:var(--agent);line-height:1.3;margin-top:2px}
 .people{display:flex;flex-wrap:wrap;gap:4px;margin-top:auto;padding-top:8px;min-height:32px}
-.r-dispatch{grid-column:1/-1;border-bottom:1.5px solid var(--plan);min-height:116px}
-.r-sales{border-right:1.5px solid var(--plan);border-bottom:1.5px solid var(--plan)}
-.r-warehouse{border-bottom:1.5px solid var(--plan)}
-.r-quiet{border-right:1.5px solid var(--plan);cursor:not-allowed;background-image:repeating-linear-gradient(135deg,transparent 0 7px,color-mix(in srgb,var(--plan) 13%,transparent) 7px 8px)}
-.r-extra{grid-column:1/-1;border-top:1.5px solid var(--plan)}
-.lit{background:color-mix(in srgb,var(--live) 16%,transparent)}
-button.room.lit:hover{background:color-mix(in srgb,var(--live) 24%,transparent)}
-.room.here{background:color-mix(in srgb,var(--live) 30%,transparent)}
-.door{position:absolute;bottom:-2px;width:22px;height:22px;pointer-events:none}
+.room.quiet{cursor:not-allowed;background-image:repeating-linear-gradient(135deg,transparent 0 7px,color-mix(in srgb,var(--plan) 13%,transparent) 7px 8px)}
+.room.locked{cursor:not-allowed}
+.room.locked .room-name{color:var(--muted)}
+.room.lit{background-color:color-mix(in srgb,var(--live) 16%,var(--surface))}
+button.room.lit:hover{background-color:color-mix(in srgb,var(--live) 24%,var(--surface))}
+.room.here{background-color:color-mix(in srgb,var(--live) 30%,var(--surface))}
+.room.selected{box-shadow:inset 0 0 0 3px var(--focus)}
+.plan-empty{background:var(--surface);min-height:60px}
+button.plan-empty{border:0;color:var(--muted);font-size:12px}
+button.plan-empty:hover{background:color-mix(in srgb,var(--plan) 10%,var(--surface));color:var(--plan)}
+.door{position:absolute;bottom:-2px;width:22px;height:22px;pointer-events:none;z-index:1}
 .door::before{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;background:var(--surface)}
 .door::after{content:"";position:absolute;left:0;bottom:2px;width:20px;height:20px;border-left:1px solid var(--plan);border-top:1px solid var(--plan);border-right:1px solid var(--plan);border-top-right-radius:100%;opacity:.45}
 .plan-note{font-size:12.5px;color:var(--muted);margin:8px 2px 0;min-height:18px}
@@ -345,6 +352,16 @@ dialog::backdrop{background:var(--scrim)}
 .admin td code{font-size:12px;color:var(--muted);overflow-wrap:anywhere}
 .admin form.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;max-width:900px}
 .admin .saved{color:var(--agent);font-size:13px;font-weight:600}
+.rooms-editor{display:grid;grid-template-columns:minmax(260px,420px) minmax(0,1fr);gap:24px;align-items:start}
+.rooms-editor .plan{max-width:420px}
+.rooms-editor form{display:flex;flex-direction:column;gap:10px;max-width:420px}
+.rooms-editor .row{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end}
+.rooms-editor .row .field{flex:1;min-width:90px}
+.floor-list{list-style:none;margin:0 0 10px;padding:0;display:flex;flex-direction:column;gap:6px}
+.floor-list li{display:flex;gap:6px;align-items:center}
+.floor-list input{height:32px;border:1px solid var(--line);border-radius:7px;padding:0 8px;background:var(--surface)}
+.floor-list input[type=number]{width:64px}
+@media (max-width:900px){.rooms-editor{grid-template-columns:minmax(0,1fr)}}
 .table-wrap{overflow-x:auto}
 
 .toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--surface);padding:9px 14px;border-radius:10px;font-size:13.5px;z-index:60;max-width:calc(100vw - 32px)}

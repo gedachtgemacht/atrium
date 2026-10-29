@@ -30,11 +30,17 @@ test('three browsers talk in Dispatch', async ({ browser }) => {
     await expect.poll(() => page.locator('body > audio').count(), { timeout: 15_000 }).toBe(2)
   }
   // Fake microphones produce a tone, so LiveKit reports speakers and the floor plan shows the ring.
-  await expect.poll(() => people[0].locator('.room.r-dispatch .av.talking').count(), { timeout: 15_000 }).toBeGreaterThan(0)
+  // The fake microphone only beeps now and then, so look across all three browsers.
+  const talking = async () => {
+    let n = 0
+    for (const p of people) n += await p.getByRole('button', { name: /^Dispatch\./ }).locator('.av.talking').count()
+    return n
+  }
+  await expect.poll(talking, { timeout: 20_000, intervals: [100] }).toBeGreaterThan(0)
 
   // Mute shows for everyone, leaving disconnects voice.
   await people[0].getByRole('button', { name: 'Mute' }).click()
-  await expect(people[1].locator('.room.r-dispatch .av.muted')).toHaveCount(1)
+  await expect(people[1].getByRole('button', { name: /^Dispatch\./ }).locator('.av.muted')).toHaveCount(1)
   await people[2].getByRole('button', { name: 'Leave room' }).click()
   await expect.poll(() => people[0].locator('body > audio').count(), { timeout: 15_000 }).toBe(1)
 })

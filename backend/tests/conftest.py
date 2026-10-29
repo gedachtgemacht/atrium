@@ -105,6 +105,9 @@ class Who:
     def post(self, url, **kw):
         return self._req("POST", url, **kw)
 
+    def put(self, url, **kw):
+        return self._req("PUT", url, **kw)
+
     def patch(self, url, **kw):
         return self._req("PATCH", url, **kw)
 

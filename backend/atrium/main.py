@@ -75,10 +75,10 @@ def create_app(settings: Settings | None = None, *, provider=None, transcriber=N
 
     app = FastAPI(title="Atrium", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url="/api/openapi.json")
 
-    from .api import admin, auth, channels, work, ws
+    from .api import admin, auth, channels, rooms_admin, work, ws
     from .guest import routes as guest_routes
 
-    for r in (auth.router, auth.me_router, channels.router, work.router, admin.router, guest_routes.router, ws.router):
+    for r in (auth.router, auth.me_router, channels.router, work.router, admin.router, rooms_admin.router, guest_routes.router, ws.router):
         app.include_router(r)
 
     @app.middleware("http")

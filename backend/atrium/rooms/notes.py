@@ -63,6 +63,8 @@ class WhisperTranscriber(Transcriber):
 class Session:
     room_id: uuid.UUID
     started_by: str
+    room_name: str = ""
+    channel_id: uuid.UUID | None = None
     buffers: dict[uuid.UUID, bytearray] = field(default_factory=dict)
     names: dict[uuid.UUID, str] = field(default_factory=dict)
     lines: list[str] = field(default_factory=list)
@@ -79,8 +81,11 @@ class NotesService:
     def active(self, room_id: uuid.UUID) -> bool:
         return room_id in self.sessions
 
-    def start(self, room_id: uuid.UUID, by_name: str, vocabulary: list[str] | None = None) -> None:
-        self.sessions.setdefault(room_id, Session(room_id=room_id, started_by=by_name, vocabulary=vocabulary or []))
+    def start(self, room_id: uuid.UUID, by_name: str, vocabulary: list[str] | None = None, *,
+              room_name: str = "", channel_id: uuid.UUID | None = None) -> None:
+        """The target channel is fixed when notes start, so the summary arrives even if the room is changed later."""
+        self.sessions.setdefault(room_id, Session(room_id=room_id, started_by=by_name, vocabulary=vocabulary or [],
+                                                  room_name=room_name, channel_id=channel_id))
 
     def feed(self, room_id: uuid.UUID, user_id: uuid.UUID, name: str, chunk: bytes) -> None:
         s = self.sessions.get(room_id)
@@ -133,35 +138,34 @@ class NotesService:
         speakers = sorted(set(s.names.values()))
         s.lines.clear()
         if transcript.strip():
-            await summarize(self.state, room_id, s.started_by, transcript, speakers, s.vocabulary)
+            await summarize(self.state, s, transcript, speakers)
 
 
-async def summarize(state, room_id: uuid.UUID, started_by: str, transcript: str, speakers: list[str] | None = None,
-                    vocabulary: list[str] | None = None) -> None:
+async def summarize(state, s: Session, transcript: str, speakers: list[str] | None = None) -> None:
     from .. import policy
     from ..agents.runner import _finish, _start_run, actor_for, env_for, loop, system_prompt
     from ..llm.base import ProviderError
     from ..llm.context import ContextBuilder
-    from ..models import Organization, Room
+    from ..models import Organization
     from ..services.messages import post_message
 
     cfg = state.agent_with_role("notes")
-    if cfg is None:
+    if cfg is None or s.channel_id is None:
         return
     async with state.db.sessions() as session:
-        room = await session.get(Room, room_id)
-        if room is None or room.channel_id is None:
-            return
         org = (await session.execute(select(Organization).limit(1))).scalar_one()
-        actor = actor_for(state, cfg, org, {room.channel_id})
-        channel = await policy.get_channel(session, actor, room.channel_id)
-        run = await _start_run(session, actor, channel.id, "notes", room.id, None)
+        actor = actor_for(state, cfg, org, {s.channel_id})
+        try:
+            channel = await policy.get_channel(session, actor, s.channel_id)
+        except Exception:
+            return  # the channel was deleted meanwhile
+        run = await _start_run(session, actor, channel.id, "notes", s.room_id, None)
         builder = ContextBuilder(session, actor, "notes").system(system_prompt(cfg, org))
         if speakers:
             builder.add_text("People who spoke:", ", ".join(speakers))
-        if vocabulary:
-            builder.add_text("Colleagues (for spelling names):", ", ".join(vocabulary))
-        builder.add_text(f"Transcript from the room {room.name}:", transcript)
+        if s.vocabulary:
+            builder.add_text("Colleagues (for spelling names):", ", ".join(s.vocabulary))
+        builder.add_text(f"Transcript from the room {s.room_name}:", transcript)
         ctx = builder.build()
         env = env_for(state, session, actor, channel, org, builder.labels, run.id)
         try:
@@ -171,5 +175,5 @@ async def summarize(state, room_id: uuid.UUID, started_by: str, transcript: str,
             text = ""
         if not text:
             return
-        await post_message(state, session, actor, channel, f"Notes from {room.name}, switched on by {started_by}\n\n{text}")
+        await post_message(state, session, actor, channel, f"Notes from {s.room_name}, switched on by {s.started_by}\n\n{text}")
         await _finish(session, run, "done")

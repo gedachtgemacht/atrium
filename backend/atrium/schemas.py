@@ -189,6 +189,23 @@ class RoomOut(Out):
     id: uuid.UUID
     name: str
     kind: str
-    layout: str
-    position: int
+    floor_id: str
+    col: int
+    row: int
+    col_span: int
+    row_span: int
     channel_id: uuid.UUID | None
+    channel_name: str = ""
+    members_only: bool
+    can_enter: bool = True
+
+
+class FloorOut(Out):
+    id: str
+    name: str
+    columns: int
+
+
+class RoomsOut(Out):
+    floors: list[FloorOut]
+    rooms: list[RoomOut]

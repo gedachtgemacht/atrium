@@ -21,6 +21,7 @@ class RoomState:
     name: str
     kind: str
     channel_id: uuid.UUID | None
+    members_only: bool = False
     people: dict[uuid.UUID, Person] = field(default_factory=dict)
     notes_by_id: uuid.UUID | None = None
     notes_by_name: str = ""
@@ -31,10 +32,27 @@ class Presence:
         self.rooms: dict[uuid.UUID, RoomState] = {}
         self.where: dict[uuid.UUID, uuid.UUID] = {}
 
-    def configure(self, rooms) -> None:
-        for r in rooms:
-            if r.id not in self.rooms:
-                self.rooms[r.id] = RoomState(id=r.id, name=r.name, kind=r.kind.value, channel_id=r.channel_id)
+    def configure(self, rooms) -> list[RoomState]:
+        """Apply the floor plan. The hallway is not a room you are "in". Returns rooms that are gone."""
+        wanted = {r.id: r for r in rooms if r.kind.value != "hallway"}
+        removed = []
+        for rid in list(self.rooms):
+            if rid not in wanted:
+                gone = self.rooms.pop(rid)
+                for uid in list(gone.people):
+                    self.where.pop(uid, None)
+                removed.append(gone)
+        for r in wanted.values():
+            st = self.rooms.get(r.id)
+            if st is None:
+                self.rooms[r.id] = RoomState(id=r.id, name=r.name, kind=r.kind.value, channel_id=r.channel_id,
+                                             members_only=r.members_only)
+            else:
+                st.name, st.channel_id, st.members_only = r.name, r.channel_id, r.members_only
+                if st.kind != r.kind.value:
+                    st.kind = r.kind.value
+                    st.notes_by_id, st.notes_by_name = None, ""
+        return removed
 
     def room_of(self, user_id: uuid.UUID) -> RoomState | None:
         rid = self.where.get(user_id)

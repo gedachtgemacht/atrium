@@ -277,7 +277,7 @@ def test_csrf_header_required(client):
 
 
 def test_room_notes_summary_lands_in_room_channel(client, lena, llm):
-    rooms = lena.get("/api/rooms").json()
+    rooms = lena.get("/api/rooms").json()["rooms"]
     dispatch = next(r for r in rooms if r["name"] == "Dispatch")
     with lena.ws("/ws") as ws:
         ws.receive_json()

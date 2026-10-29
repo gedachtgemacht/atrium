@@ -10,7 +10,7 @@ License: AGPL-3.0-or-later.
 - **Pull in.** A person pulls a single customer message into the backroom. That makes a copy and an audit entry. Agents only ever see that copy.
 - **Agents draft, people send.** Mention `@QuoteAgent` in the backroom. Its result is a card (lines, total, note, sources, reasoning). "Move to customer channel" puts text and PDF into *your* composer. It goes out only when you press Send, as your message.
 - **Memory.** Decisions, open questions and promises are extracted from the backroom, each with its source. People can edit or delete entries. Promises and questions close when the matching draft is sent. "Ask the backroom" answers only from backroom and memory, always with a source, and says so when it doesn't know.
-- **Rooms.** A floor plan with live presence and voice over LiveKit. Presence is never stored or logged. Notes run only when someone in the room turns them on; everyone sees it; audio is transcribed locally with faster-whisper and never stored.
+- **Rooms.** A floor plan with live presence and voice over LiveKit. Admins shape it to the company under Admin → Rooms: floors or sites, rooms on a grid, quiet rooms, the hallway, rooms only a department can enter, and which channel a room's notes go to. Presence is never stored or logged. Notes run only when someone in the room turns them on; everyone sees it; audio is transcribed locally with faster-whisper and never stored.
 - **The wall** is enforced in the backend and covered by tests that must never be weakened. See [CLAUDE.md](CLAUDE.md) and [docs/PLAN.md](docs/PLAN.md).
 
 ## Run it on a server

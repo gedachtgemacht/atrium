@@ -117,3 +117,31 @@ test('edits and deletions show up live on the other side', async ({ browser }) =
   await sarah.getByRole('button', { name: 'Really delete?' }).click()
   await expect(lena.locator('.feed').getByText('Oops, wrong channel')).toHaveCount(0)
 })
+
+test('an admin adds a site with a room, and colleagues see it right away', async ({ browser }) => {
+  const lena = await signIn(browser, 'lena')
+  const tom = await signIn(browser, 'tom')
+  await lena.goto('/#/admin')
+  await lena.getByRole('tab', { name: 'Rooms' }).click()
+  await lena.getByRole('button', { name: 'Add floor or site' }).click()
+  await lena.locator('.floor-list li').last().locator('input').first().fill('Erfurt depot')
+  await lena.getByRole('button', { name: 'Save floors' }).click()
+  await expect(lena.getByText('Floors saved')).toBeVisible()
+  await lena.getByRole('group', { name: 'Floor to edit' }).getByRole('button', { name: 'Erfurt depot' }).click()
+  await lena.getByRole('button', { name: 'New room here' }).first().click()
+  await lena.getByLabel('Name', { exact: true }).fill('Depot office')
+  await lena.getByLabel('Notes go to').selectOption({ label: '#warehouse' })
+  await lena.getByLabel('Only members of that channel can go in').check()
+  await lena.getByRole('button', { name: 'Add room' }).click()
+  await expect(lena.getByText('Saved', { exact: true })).toBeVisible()
+
+  // Tom sees the new site live; he is in #warehouse, so he may go in.
+  await tom.getByRole('group', { name: 'Floors' }).getByRole('button', { name: 'Erfurt depot' }).click()
+  await tom.getByRole('button', { name: /^Depot office/ }).click()
+  await expect(tom.getByText("You're in Depot office")).toBeVisible()
+  // Lena is not in #warehouse: locked for her.
+  await lena.goto('/')
+  await lena.getByRole('group', { name: 'Floors' }).getByRole('button', { name: 'Erfurt depot' }).click()
+  await lena.getByRole('button', { name: /^Depot office/ }).click()
+  await expect(lena.getByText('Only members of #warehouse can go in.')).toBeVisible()
+})

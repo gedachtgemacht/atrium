@@ -89,10 +89,14 @@ async def handle(state, conn: Connection, user, data: dict) -> None:
     elif kind == "room.join":
         try:
             room_id = uuid.UUID(str(data.get("room_id")))
-            left, room = presence.join(actor.user_id, actor.name, room_id)
+            target = presence.rooms[room_id]
         except (ValueError, KeyError):
             await conn.send({"type": "error", "detail": "No such room"})
             return
+        if target.members_only and not await may_enter(state, actor.user_id, target.channel_id):
+            await conn.send({"type": "error", "detail": "Only members of this room's channel can go in"})
+            return
+        left, room = presence.join(actor.user_id, actor.name, room_id)
         if left is not None and left.id != room.id:
             await after_leave(state, left)
         await broadcast_presence(state)
@@ -112,16 +116,26 @@ async def handle(state, conn: Connection, user, data: dict) -> None:
         await broadcast_presence(state)
     elif kind == "room.notes":
         room = presence.room_of(actor.user_id)
-        if room is None or room.kind != "normal":
+        if room is None or room.kind != "normal" or room.channel_id is None:
             return
         if data.get("on"):
             if not room.notes_by_id:
                 room.notes_by_id, room.notes_by_name = actor.user_id, actor.name
-                state.notes.start(room.id, actor.name, await colleague_names(state, actor.org_id))
+                state.notes.start(room.id, actor.name, await colleague_names(state, actor.org_id),
+                                  room_name=room.name, channel_id=room.channel_id)
         elif room.notes_by_id:
             room.notes_by_id, room.notes_by_name = None, ""
             state.tasks.spawn(state.notes.stop(room.id), name="notes:stop")
         await broadcast_presence(state)
+
+
+async def may_enter(state, user_id, channel_id) -> bool:
+    from .. import policy
+
+    if channel_id is None:
+        return False
+    async with state.db.sessions() as session:
+        return await policy.is_member(session, user_id, channel_id)
 
 
 async def colleague_names(state, org_id) -> list[str]:
@@ -132,9 +146,9 @@ async def colleague_names(state, org_id) -> list[str]:
         return list(rows.scalars())
 
 
-async def load_rooms(state) -> None:
+async def load_rooms(state):
     async with state.db.sessions() as session:
-        state.presence.configure((await session.execute(select(Room))).scalars().all())
+        return state.presence.configure((await session.execute(select(Room))).scalars().all())
 
 
 @router.websocket("/g/ws")

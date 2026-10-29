@@ -19,6 +19,7 @@ Status 2026-10-29: phases 1 to 6 built. This file records the architecture, the 
 | F11 | Quiet room | Anyone can go quiet themselves. Clicking it as a visitor shows a hint to write instead. |
 | F12 | Invoice agent | Left out. The rail shows only agents that have a YAML file. |
 | F13 | License | AGPL-3.0-or-later. |
+| F15 | Rooms for other company structures | Admins edit the floor plans under Admin → Rooms: several floors or sites, rooms on a grid (column, row, width, height), kinds talk room, quiet room and one hallway. A talk room may have a channel for its notes; without one it has no notes. "Only members" limits a room to that channel's members (a department's own room). Deleting a room sends anyone inside to the hallway and finishes running notes. |
 | F14 | Editing and deleting | People and guests edit and delete their own messages; the other side sees the change live, edits are marked "edited". Backroom copies are snapshots and can't be edited. When a guest deletes a message, its backroom copy is deleted too. People can remove agent messages in internal channels. |
 
 ## Architecture
@@ -68,13 +69,13 @@ Technical decisions:
 
 ## Data model
 
-`organization` (name, server location, interest rate, retention, LLM provider) · `user_account` · `user_session` · `agent` (rows for authorship; tools come from YAML) · `channel` (kind internal | backroom | shared, `backroom_for_id` unique, check constraint) · `channel_member` · `guest` (name, company, token hash, expiry, revoked) · `guest_session` · `message` (exactly one author, `pulled_from_id`, `from_draft_id`, `search`) · `attachment` (files on disk, rows point to storage keys) · `pull` · `agent_run` · `work_result` (kind, data, sources, `answers_message_ids`, status internal | with_user | sent) · `draft` · `memory_entry` (decided | open | committed, source message, status, done note) · `llm_call` · `audit_event` · `read_marker` (unread counters, people only) · `room` (configuration only).
+`organization` (name, server location, interest rate, retention, LLM provider) · `user_account` · `user_session` · `agent` (rows for authorship; tools come from YAML) · `channel` (kind internal | backroom | shared, `backroom_for_id` unique, check constraint) · `channel_member` · `guest` (name, company, token hash, expiry, revoked) · `guest_session` · `message` (exactly one author, `pulled_from_id`, `from_draft_id`, `search`) · `attachment` (files on disk, rows point to storage keys) · `pull` · `agent_run` · `work_result` (kind, data, sources, `answers_message_ids`, status internal | with_user | sent) · `draft` · `memory_entry` (decided | open | committed, source message, status, done note) · `llm_call` · `audit_event` · `read_marker` (unread counters, people only) · `room` (configuration only: floor, grid cell and span, kind, notes channel, members only). Floors live in `organization.floors`.
 
 Deliberately absent: presence, "last seen", IP addresses, read receipts for guests.
 
 ## API
 
-Internal (`/api`, cookie): `auth/login|logout`, `me`, `users`, `channels` (list, create, detail, members), `channels/{id}/messages` (list, post with `attachment_ids` and `draft_ids`), `channels/{id}/read`, `messages/{id}/pull`, `files` (upload, download), `channels/{id}/guests` (invite), `guests/{id}` (revoke), `guests/{id}/preview`, `drafts` (list, patch, discard, remove attachment), `work-results/{id}` (edit prices), `work-results/{id}/stage`, `channels/{id}/memory`, `memory/{id}`, `ask`, `search`, `agents`, `rooms`, `admin/*` (audit, settings, users, channels, guests export and delete, retention), `ws`.
+Internal (`/api`, cookie): `auth/login|logout`, `me`, `users`, `channels` (list, create, detail, members), `channels/{id}/messages` (list, post with `attachment_ids` and `draft_ids`), `channels/{id}/read`, `messages/{id}/pull`, `files` (upload, download), `channels/{id}/guests` (invite), `guests/{id}` (revoke), `guests/{id}/preview`, `drafts` (list, patch, discard, remove attachment), `work-results/{id}` (edit prices), `work-results/{id}/stage`, `channels/{id}/memory`, `memory/{id}`, `ask`, `search`, `agents`, `rooms` (floors and rooms), `admin/*` (audit, settings, users, channels, guests export and delete, retention, `rooms`, `floors`), `ws`.
 
 Guest (`/g/api`, own cookie or `Authorization: Preview …`): `join-info`, `session`, `me`, `channel`, `messages`, `files`, plus `/g/ws`.
 
@@ -91,7 +92,7 @@ Run time: postgres:17, livekit-server, caddy.
 ## Verified
 
 - Backend: 30 pytest tests including the wall tests.
-- Browsers: 6 Playwright tests (live chat, pull invisible to guests, preview, invite, rooms, live edits and deletions).
+- Browsers: 7 Playwright tests (live chat, pull invisible to guests, preview, invite, rooms, live edits and deletions, an admin building a new site with a members only room).
 - Voice: `E2E_LIVEKIT_URL=ws://localhost:7880 npx playwright test e2e/voice.spec.ts` puts three browsers with fake microphones in one room over a local LiveKit server: all connect, each plays the other two, speakers show, mute shows, leaving drops out.
 - Notes: a browser with a recorded sentence as microphone, notes on and off, local faster-whisper, summary by Qwen 3.6 in #dispatch. Colleagues' names go to whisper as a hint and to the notes agent for spelling.
 - With Qwen 3.6 35B through Ollama: quote, memory, ask the backroom.

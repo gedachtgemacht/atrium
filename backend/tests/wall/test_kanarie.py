@@ -39,7 +39,7 @@ def _run_every_agent_path(client, lena, ch, label):
     assert lena.post("/api/ask", json={"question": "What is still open?"}).status_code == 200
     assert lena.post("/api/ask", json={"question": "Erfurt?", "channel_id": ch["Hollmann Bau"]["id"]}).status_code == 200
     # 6. room notes
-    rooms = lena.get("/api/rooms").json()
+    rooms = lena.get("/api/rooms").json()["rooms"]
     dispatch = next(r for r in rooms if r["name"] == "Dispatch")
     with lena.ws("/ws") as ws:
         ws.receive_json()

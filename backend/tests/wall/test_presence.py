@@ -25,7 +25,7 @@ def dump(client) -> dict:
 
 
 def test_room_visit_leaves_no_trace(client, lena, tom, caplog):
-    rooms = lena.get("/api/rooms").json()
+    rooms = lena.get("/api/rooms").json()["rooms"]
     dispatch = next(r for r in rooms if r["name"] == "Dispatch")
     warehouse = next(r for r in rooms if r["name"] == "Warehouse office")
     before = dump(client)

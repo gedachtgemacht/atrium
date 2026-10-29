@@ -24,7 +24,12 @@ export interface MemoryEntry {
   due_date: string | null; source_message_id: string | null; source_label: string; status: 'active' | 'done'; done_at: string | null; done_note: string; created_at: string
 }
 export interface Agent { id: string; slug: string; handle: string; name: string; initial: string; description: string; status: string; busy: boolean; waiting: number }
-export interface Room { id: string; name: string; kind: 'normal' | 'quiet'; layout: string; position: number; channel_id: string | null }
+export interface Room {
+  id: string; name: string; kind: 'normal' | 'quiet' | 'hallway'; floor_id: string; col: number; row: number; col_span: number; row_span: number
+  channel_id: string | null; channel_name: string; members_only: boolean; can_enter: boolean
+}
+export interface Floor { id: string; name: string; columns: number }
+export interface RoomsPlan { floors: Floor[]; rooms: Room[] }
 export interface Person { id: string; name: string; initials: string; tone: string; role_label: string }
 export interface PresenceRoom { id: string; people: { user_id: string; muted: boolean }[]; notes_by_id: string | null; notes_by_name: string }
 export interface AskAnswer { question: string; answer: string; known: boolean; sources: { kind: string; id: string; channel_id: string; label: string }[] }

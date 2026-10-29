@@ -79,8 +79,9 @@ class MemoryStatus(str, enum.Enum):
 
 
 class RoomKind(str, enum.Enum):
-    normal = "normal"
-    quiet = "quiet"
+    normal = "normal"  # talk: voice, notes if the room has a channel
+    quiet = "quiet"  # focused work: no voice, nobody can talk to you
+    hallway = "hallway"  # where everybody online but in no room shows up; one per organization
 
 
 class Organization(Base):
@@ -92,6 +93,8 @@ class Organization(Base):
     # {"shared_days": int|None, "backroom_days": int|None, "audit_days": int|None, "guest_days_after_expiry": int|None}
     retention: Mapped[dict] = mapped_column(JSONB, default=dict)
     llm_provider: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    # Floor plans: [{"id": "main", "name": "Main office", "columns": 2}]. Rooms point to a floor id.
+    floors: Mapped[list] = mapped_column(JSONB, default=lambda: [{"id": "main", "name": "Office", "columns": 2}])
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
 
 
@@ -367,7 +370,7 @@ class ReadMarker(Base):
 
 
 class Room(Base):
-    """Room configuration only. Who is in a room is never stored."""
+    """Room configuration only: where it sits on which floor plan. Who is in a room is never stored."""
 
     __tablename__ = "room"
     __table_args__ = (UniqueConstraint("org_id", "name"),)
@@ -375,7 +378,12 @@ class Room(Base):
     org_id: Mapped[uuid.UUID] = fk("organization.id", index=False)
     name: Mapped[str] = mapped_column(String(100))
     kind: Mapped[RoomKind] = mapped_column(_enum(RoomKind), default=RoomKind.normal)
-    # CSS class for the floor plan: dispatch | sales | warehouse | quiet
-    layout: Mapped[str] = mapped_column(String(30), default="")
-    position: Mapped[int] = mapped_column(default=0)
+    floor_id: Mapped[str] = mapped_column(String(40), default="main")
+    col: Mapped[int] = mapped_column(default=0)
+    row: Mapped[int] = mapped_column(default=0)
+    col_span: Mapped[int] = mapped_column(default=1)
+    row_span: Mapped[int] = mapped_column(default=1)
+    # Notes from this room go here. Without a channel the room has no notes.
     channel_id: Mapped[uuid.UUID | None] = fk("channel.id", nullable=True, ondelete="SET NULL", index=False)
+    # Only members of channel_id may enter (a department's own room).
+    members_only: Mapped[bool] = mapped_column(default=False)

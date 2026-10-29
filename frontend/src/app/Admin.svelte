@@ -2,9 +2,10 @@
   import { onMount } from 'svelte'
   import { api } from '../lib/api'
   import { when } from '../lib/format'
+  import RoomsEditor from './RoomsEditor.svelte'
   import { store } from './store.svelte'
 
-  type Tab = 'audit' | 'settings' | 'people' | 'guests' | 'channels'
+  type Tab = 'audit' | 'settings' | 'people' | 'guests' | 'channels' | 'rooms'
   type AuditRow = { id: string; at: string; actor_kind: string; actor_name: string; action: string; subject_id: string | null; details: Record<string, unknown> }
   type Settings = { name: string; server_location: string; interest_rate_pct: string; retention: Record<string, number | null>; llm_provider: string | null; llm_providers: string[]; default_llm_provider: string }
   type UserRow = { id: string; email: string; name: string; role_label: string; is_admin: boolean; is_active: boolean }
@@ -41,6 +42,12 @@
     'work_result.edited': 'Prices changed',
     'settings.changed': 'Settings changed',
     'retention.applied': 'Retention applied',
+    'rooms.created': 'Room added',
+    'rooms.changed': 'Room changed',
+    'rooms.deleted': 'Room deleted',
+    'rooms.floors_changed': 'Floors changed',
+    'message.edited': 'Message edited',
+    'message.deleted': 'Message deleted',
   }
 
   async function load(t: Tab) {
@@ -146,7 +153,7 @@
   <h1>Admin</h1>
   <p class="hint">Audit log, retention, guest data and the language model. Admins don't get to read channels they aren't in.</p>
   <div class="tabs" role="tablist">
-    {#each [['audit', 'Audit log'], ['settings', 'Settings'], ['people', 'People'], ['guests', 'Guests'], ['channels', 'Channels']] as [t, label]}
+    {#each [['audit', 'Audit log'], ['settings', 'Settings'], ['people', 'People'], ['guests', 'Guests'], ['channels', 'Channels'], ['rooms', 'Rooms']] as [t, label]}
       <button role="tab" aria-selected={tab === t} onclick={() => open(t as Tab)}>{label}</button>
     {/each}
   </div>
@@ -246,6 +253,8 @@
       </table>
     </div>
     <p class="hint" style="margin-top:12px">Delete removes the guest, their messages, the backroom copies of them and their files.</p>
+  {:else if tab === 'rooms'}
+    <RoomsEditor />
   {:else if tab === 'channels'}
     <div class="table-wrap">
       <table>

@@ -27,6 +27,9 @@ def build_state(settings: Settings, provider=None, transcriber=None) -> AppState
     if transcriber is None:
         transcriber = FakeTranscriber() if settings.whisper_model == "fake" else WhisperTranscriber(settings.whisper_model, settings.whisper_language)
     state.notes = NotesService(state, transcriber)
+    from .notify import Notifier
+
+    state.notifier = Notifier(state)
     return state
 
 

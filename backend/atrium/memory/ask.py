@@ -10,10 +10,8 @@ from ..agents.runner import _finish, _start_run, actor_for, env_for, loop, syste
 from ..llm.base import ProviderError
 from ..llm.context import ContextBuilder
 from ..models import Organization
+from ..i18n import t
 from ..schemas import AskOut, AskSource
-
-DONT_KNOW = "I don't know that. I don't read the customer channel, I only see what you pull into the backroom."
-NO_MODEL = "I can't answer right now because the language model isn't reachable."
 
 
 async def ask(state, session, user: UserActor, question: str, channel_id: uuid.UUID | None) -> AskOut:
@@ -30,14 +28,18 @@ async def ask(state, session, user: UserActor, question: str, channel_id: uuid.U
         scope = [ch.id]
     else:
         scope = [c.id for c in await policy.all_backrooms(session, user)]
-    if cfg is None or not scope:
-        return AskOut(question=question, answer=DONT_KNOW, known=False, sources=[])
-
     org = (await session.execute(select(Organization).limit(1))).scalar_one()
+    from ..models import User
+
+    me = await session.get(User, user.user_id)
+    L = (me.locale if me else "") or org.language
+    if cfg is None or not scope:
+        return AskOut(question=question, answer=t(L, "ask.dont_know"), known=False, sources=[])
+
     # The agent may only read what this person may read, and only backrooms.
     actor = actor_for(state, cfg, org, scope)
     run = await _start_run(session, actor, scope[0] if len(scope) == 1 else None, "ask", None, user.user_id)
-    builder = ContextBuilder(session, actor, "ask").system(system_prompt(cfg, org))
+    builder = ContextBuilder(session, actor, "ask").system(system_prompt(cfg, org, L))
     memory = await policy.memory_in(session, actor, scope)
     await builder.add_memory(memory, heading="Memory entries:")
     if len(scope) == 1:
@@ -56,7 +58,7 @@ async def ask(state, session, user: UserActor, question: str, channel_id: uuid.U
         await loop(state, ctx, cfg, env, run.id, org.llm_provider)
     except ProviderError as e:
         await _finish(session, run, "failed", str(e))
-        return AskOut(question=question, answer=NO_MODEL, known=False, sources=[])
+        return AskOut(question=question, answer=t(L, "ask.no_model"), known=False, sources=[])
     await _finish(session, run, "done")
 
     result = env.answer or {"text": "", "known": False, "sources": []}
@@ -74,5 +76,5 @@ async def ask(state, session, user: UserActor, question: str, channel_id: uuid.U
             sources.append(AskSource(kind="memory", id=e.id, channel_id=e.channel_id, label=e.text[:60]))
     # No source, no answer: the backroom never guesses.
     if not result["known"] or not sources or not result["text"].strip():
-        return AskOut(question=question, answer=DONT_KNOW, known=False, sources=[])
+        return AskOut(question=question, answer=t(L, "ask.dont_know"), known=False, sources=[])
     return AskOut(question=question, answer=result["text"].strip(), known=True, sources=sources)

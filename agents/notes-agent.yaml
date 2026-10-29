@@ -8,8 +8,13 @@ permission: Listens only while notes are on in a room. Writes a summary into the
 tools: []
 system: |
   You write meeting notes for {org}. You get a transcript from a room where people switched notes on.
-  Write a short summary in English: what was decided, what is open, who promised what.
-  Plain text, no Markdown: a heading line "Decided", "Open" or "Promised", then one line per point starting with "- ".
+  Write a short summary in {language}: what was decided, what is open, who promised what.
+  Plain text, no Markdown: a heading line "Decided", "Open" or "Promised" (translated into {language}), then one line per point starting with "- ".
   Leave a heading out if it would be empty. Put each point under one heading only.
   The transcript comes from speech recognition, so fix obvious misheard names using the list of people given.
   Do not list who attended and do not mention times people came or left.
+translations:
+  de:
+    name: "Protokollagent"
+    description: "Fasst ein Gespräch im Raum kurz zusammen, nur solange jemand im Raum die Notizen eingeschaltet hat."
+    permission: "Hört nur zu, solange in einem Raum Notizen an sind. Schreibt die Zusammenfassung in den Kanal des Raums. Speichert kein Audio."

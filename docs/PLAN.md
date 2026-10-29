@@ -20,6 +20,8 @@ Status 2026-10-29: phases 1 to 6 built. This file records the architecture, the 
 | F12 | Invoice agent | Left out. The rail shows only agents that have a YAML file. |
 | F13 | License | AGPL-3.0-or-later. |
 | F15 | Rooms for other company structures | Admins edit the floor plans under Admin → Rooms: several floors or sites, rooms on a grid (column, row, width, height), kinds talk room, quiet room and one hallway. A talk room may have a channel for its notes; without one it has no notes. "Only members" limits a room to that channel's members (a department's own room). Deleting a room sends anyone inside to the hallway and finishes running notes. |
+| F16 | Notifications | Socket event for people online (browser notification while the tab is in the background), one collected email after 10 minutes for people offline, for mentions, customer messages and finished agent work. Guests only by opt-in email. No message text in any email. Pending notifications live in memory, so nothing about who was online is stored. Push to closed browsers (service worker, Web Push) is not built yet. |
+| F17 | Languages | English and German. The company language drives the UI default, agents, customer drafts, PDF and emails; people pick their own UI language; guests follow their browser or their own choice. The guest bundle has its own dictionary, so it never carries internal words. |
 | F14 | Editing and deleting | People and guests edit and delete their own messages; the other side sees the change live, edits are marked "edited". Backroom copies are snapshots and can't be edited. When a guest deletes a message, its backroom copy is deleted too. People can remove agent messages in internal channels. |
 
 ## Architecture
@@ -91,8 +93,9 @@ Run time: postgres:17, livekit-server, caddy.
 
 ## Verified
 
-- Backend: 30 pytest tests including the wall tests.
-- Browsers: 7 Playwright tests (live chat, pull invisible to guests, preview, invite, rooms, live edits and deletions, an admin building a new site with a members only room).
+- Backend: 44 pytest tests including the wall tests, notifications (emails without content, opt-in for guests, resume and unsubscribe links) and the German quote flow with the mockup's wording.
+- Guest bundle: `npm run check:guest` fails if the built guest app contains internal words.
+- Browsers: 8 Playwright tests (including the German UI) (live chat, pull invisible to guests, preview, invite, rooms, live edits and deletions, an admin building a new site with a members only room).
 - Voice: `E2E_LIVEKIT_URL=ws://localhost:7880 npx playwright test e2e/voice.spec.ts` puts three browsers with fake microphones in one room over a local LiveKit server: all connect, each plays the other two, speakers show, mute shows, leaving drops out.
 - Notes: a browser with a recorded sentence as microphone, notes on and off, local faster-whisper, summary by Qwen 3.6 in #dispatch. Colleagues' names go to whisper as a hint and to the notes agent for spelling.
 - With Qwen 3.6 35B through Ollama: quote, memory, ask the backroom.
@@ -101,4 +104,5 @@ Run time: postgres:17, livekit-server, caddy.
 
 - Real Claude models not tested (no API key on the dev machine).
 - Room notes need microphone permission; on a phone the browser stops audio when the screen locks.
-- No i18n yet; UI strings are inline English.
+- Web Push for closed browsers and phones is not built; notifications need an open tab or email.
+- API error details (validation messages) are still English.

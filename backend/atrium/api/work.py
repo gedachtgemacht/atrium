@@ -166,7 +166,11 @@ async def edit_memory(entry_id: uuid.UUID, body: MemoryPatch, actor: UserActor =
         if st != e.status:
             e.status = st
             e.done_at = utcnow() if st == MemoryStatus.done else None
-            e.done_note = f"Marked done by {actor.name}" if st == MemoryStatus.done else ""
+            from ..i18n import t as tr
+            from ..models import Organization
+
+            language = (await session.get(Organization, actor.org_id)).language
+            e.done_note = tr(language, "mem.marked_done", name=actor.name) if st == MemoryStatus.done else ""
     for k, v in changes.items():
         setattr(e, k, v.strip() if isinstance(v, str) else v)
     e.updated_by_id = actor.user_id
@@ -222,6 +226,12 @@ async def search(q: str, actor: UserActor = Depends(current_user), session: Asyn
 @router.get("/agents", response_model=list[AgentOut])
 async def agents(actor: UserActor = Depends(current_user), session: AsyncSession = Depends(get_session),
                  state: AppState = Depends(get_state)):
+    from ..agents.config import agent_description, agent_name
+    from ..models import Organization, User
+
+    me = await session.get(User, actor.user_id)
+    org = await session.get(Organization, actor.org_id)
+    lang = (me.locale if me else "") or org.language
     readable = policy.readable_channel_ids(actor)
     out = []
     for cfg in state.agents.values():
@@ -240,19 +250,10 @@ async def agents(actor: UserActor = Depends(current_user), session: AsyncSession
             select(func.count()).select_from(WorkResult).where(WorkResult.agent_id == aid, WorkResult.status == WorkStatus.internal,
                                                                WorkResult.channel_id.in_(readable))
         )).scalar_one()
-        if busy:
-            status = "Working on it"
-        elif waiting:
-            status = "A draft is waiting in your composer" if waiting == 1 else f"{waiting} drafts wait in your composer"
-        elif fresh:
-            status = "A result is waiting in the backroom" if fresh == 1 else f"{fresh} results wait in the backroom"
-        else:
-            status = ""
-        if cfg.role == "notes" and state.presence is not None:
-            rooms = state.presence.rooms_with_notes()
-            status = ("Taking notes in " + ", ".join(rooms)) if rooms else "Not in any room right now"
-        out.append(AgentOut(id=aid, slug=cfg.slug, handle=cfg.handle, name=cfg.name, initial=cfg.initial,
-                            description=cfg.description, status=status, busy=bool(busy), waiting=waiting + fresh))
+        notes_rooms = state.presence.rooms_with_notes() if cfg.role == "notes" and state.presence is not None else []
+        out.append(AgentOut(id=aid, slug=cfg.slug, handle=cfg.handle, name=agent_name(cfg, lang), initial=cfg.initial,
+                            description=agent_description(cfg, lang), role=cfg.role, busy=bool(busy),
+                            drafts_waiting=waiting, results_waiting=fresh, notes_rooms=notes_rooms))
     return out
 
 

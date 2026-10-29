@@ -10,6 +10,8 @@ License: AGPL-3.0-or-later.
 - **Pull in.** A person pulls a single customer message into the backroom. That makes a copy and an audit entry. Agents only ever see that copy.
 - **Agents draft, people send.** Mention `@QuoteAgent` in the backroom. Its result is a card (lines, total, note, sources, reasoning). "Move to customer channel" puts text and PDF into *your* composer. It goes out only when you press Send, as your message.
 - **Memory.** Decisions, open questions and promises are extracted from the backroom, each with its source. People can edit or delete entries. Promises and questions close when the matching draft is sent. "Ask the backroom" answers only from backroom and memory, always with a source, and says so when it doesn't know.
+- **Notifications.** People with Atrium open get browser notifications for mentions (`@Tom`), customer messages and finished agent work; people who are offline get one collected email after a few minutes. Guests get an email about replies only if they leave an address. Emails say who wrote where, never what.
+- **English and German.** The company language (Admin → Settings) sets the UI, agent replies, customer drafts, the quote PDF and emails. Everyone can pick their own UI language; guests follow their browser.
 - **Rooms.** A floor plan with live presence and voice over LiveKit. Admins shape it to the company under Admin → Rooms: floors or sites, rooms on a grid, quiet rooms, the hallway, rooms only a department can enter, and which channel a room's notes go to. Presence is never stored or logged. Notes run only when someone in the room turns them on; everyone sees it; audio is transcribed locally with faster-whisper and never stored.
 - **The wall** is enforced in the backend and covered by tests that must never be weakened. See [CLAUDE.md](CLAUDE.md) and [docs/PLAN.md](docs/PLAN.md).
 
@@ -47,6 +49,10 @@ Set in `.env`; admins can switch between configured providers under **Admin → 
 - Self hosted, OpenAI compatible (vLLM, Ollama, llama.cpp server): `ATRIUM_LLM_PROVIDER=openai_compat`, `ATRIUM_OPENAI_COMPAT_BASE_URL`, `ATRIUM_OPENAI_COMPAT_MODEL`. For thinking models set `ATRIUM_OPENAI_COMPAT_REASONING=none` to keep answers fast.
 
 Every LLM call shows up in **Admin → Audit log** with the agent, trigger, the ids of the messages in its context, provider and time.
+
+### Email
+
+Set `ATRIUM_SMTP_*` in `.env`. Without SMTP settings mails land in `data/outbox/` as `.eml` files, handy for testing. Guest emails carry a sign-in link valid for 7 days and a one-click unsubscribe link.
 
 ### Agents
 
@@ -89,6 +95,7 @@ cd backend && uv run pytest            # unit, flow and wall tests
 cd frontend && npx playwright test     # end to end in real browsers
 E2E_LIVEKIT_URL=ws://localhost:7880 npx playwright test e2e/voice.spec.ts   # three browsers talking, needs the LiveKit dev server
 cd frontend && npm run check           # types
+cd frontend && npm run build && npm run check:guest   # the guest bundle carries no internal words
 ```
 
 The wall tests in `backend/tests/wall/` are never weakened or skipped.

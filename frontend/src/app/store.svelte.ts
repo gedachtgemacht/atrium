@@ -1,4 +1,5 @@
 import { api, socketUrl } from '../lib/api'
+import { t } from '../lib/i18n.svelte'
 import type { Agent, Channel, Draft, Floor, Me, MemoryEntry, Message, Person, PresenceRoom, Room, RoomsPlan, WorkResult } from '../lib/types'
 import { voice } from './voice.svelte'
 
@@ -39,6 +40,8 @@ class Store {
   #outbox: unknown[] = []
   #retry = 0
   #toastTimer: ReturnType<typeof setTimeout> | undefined
+  #missed = 0
+  #baseTitle = ''
 
   get current(): Channel | null {
     if (this.route.view !== 'channel') return null
@@ -56,6 +59,13 @@ class Store {
   }
 
   async start() {
+    this.#baseTitle = document.title
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        this.#missed = 0
+        document.title = this.#baseTitle
+      }
+    })
     window.addEventListener('hashchange', () => {
       this.route = parseHash()
       this.railOpen = false
@@ -169,6 +179,22 @@ class Store {
     }
   }
 
+  /** Mentions, customer messages, finished agent work. Shown by the browser when you look elsewhere. */
+  notify(e: { kind: string; who: string; where: string; channel_id: string; message_id: string; body: string }) {
+    if (document.visibilityState === 'visible') return
+    this.#missed += 1
+    document.title = `(${this.#missed}) ${this.#baseTitle}`
+    if (!('Notification' in window) || Notification.permission !== 'granted') return
+    const n = new Notification(t(`notify.${e.kind}`, { who: e.who, where: e.where }), { body: e.body, tag: e.channel_id, icon: '/favicon.svg' })
+    n.onclick = () => {
+      window.focus()
+      const ch = this.channel(e.channel_id)
+      this.go(ch?.kind === 'backroom' && ch.backroom_for_id ? ch.backroom_for_id : e.channel_id)
+      setTimeout(() => this.flash(e.message_id), 400)
+      n.close()
+    }
+  }
+
   send(data: unknown) {
     // Clicks that happen while the socket (re)connects go out as soon as it is open.
     if (this.#ws?.readyState === WebSocket.OPEN) this.#ws.send(JSON.stringify(data))
@@ -221,6 +247,9 @@ class Store {
       case 'room.voice':
         if (e.url && e.token) voice.join(e.url, e.token)
         else voice.leave()
+        break
+      case 'notify':
+        this.notify(e)
         break
       case 'rooms.updated':
         this.loadRooms()

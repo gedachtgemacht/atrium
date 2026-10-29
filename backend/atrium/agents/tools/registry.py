@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ... import policy
 from ...actors import AgentActor
+from ...i18n import money, number, t
 from ...llm.base import ToolSpec, tool_schema
 from ...models import (
     AuthorKind,
@@ -109,9 +110,15 @@ def quote_total(lines: list[dict]) -> int:
 
 
 def quote_summary(data: dict) -> str:
+    L = data.get("language")
     loads = sum(l["loads"] for l in data["lines"])
-    n = len(data["lines"])
-    return f"{n} routes, {loads} loads, {eur(data['total_per_month'])} a month"
+    return t(L, "quote.summary", n=len(data["lines"]), loads=loads, total=money(L, data["total_per_month"]))
+
+
+def joined(L, items: list[str]) -> str:
+    if len(items) <= 1:
+        return "".join(items)
+    return f"{', '.join(items[:-1])} {t(L, 'quote.and')} {items[-1]}"
 
 
 @tool(
@@ -137,6 +144,7 @@ async def create_quote(env: ToolEnv, args: dict):
     if env.channel is None:
         return {"error": "No channel"}
     env.used.update({"erp", "contracts"})
+    L = env.org.language
     year = int(args.get("year") or env.today.year + 1)
     markup = float(args.get("markup_pct") or 0)
     terms = env.contracts.terms(args.get("customer", "")) or env.contracts.terms(env.channel.partner_name or "")
@@ -172,19 +180,16 @@ async def create_quote(env: ToolEnv, args: dict):
             rate = round_to(avg, 10)
             lines.append({"origin": o, "destination": d, "loads": loads, "rate": rate, "new": True})
             reasoning.append(
-                f"{d} has no price yet. Calculated with about {p.distance_km:.0f} km one way, our standard rate per km"
-                + (f" and {sub_markup:.0f} % on top for the loads with the subcontractor." if sub else ".")
+                t(L, "quote.reason_new", place=d, km=f"{p.distance_km:.0f}")
+                + (t(L, "quote.reason_sub", pct=f"{sub_markup:.0f}") if sub else ".")
             )
-            reasoning.append(f"Dispatch shows {free} free slots a month on the route from {month}.")
+            reasoning.append(t(L, "quote.reason_capacity", free=free, month=month))
             if sub:
-                notes.append(
-                    f"Our own trucks can do {own} of the {loads} loads to {d} in the first month. "
-                    f"A subcontractor runs the other {sub}, that's already priced in."
-                )
+                notes.append(t(L, "quote.note_sub", own=own, loads=loads, place=d, sub=sub))
     if known:
-        reasoning.insert(0, f"{' and '.join(known)}: contract prices {year - 1} from the ERP, plus {markup:g} % as requested.")
+        reasoning.insert(0, t(L, "quote.reason_known", places=joined(L, known), year=year - 1, markup=number(L, markup)))
     if wanted and sum(l["loads"] for l in lines) != wanted:
-        notes.append(f"The customer asked for {wanted} loads a month, the contract routes alone already have more. Check the volumes.")
+        notes.append(t(L, "quote.note_volume", wanted=wanted))
     customer = terms.customer
     short = customer.replace(" GmbH", "")
     data = {
@@ -196,16 +201,17 @@ async def create_quote(env: ToolEnv, args: dict):
         "note": " ".join(notes),
         "reasoning": reasoning,
         "greeting_name": (args.get("greeting_name") or "").split(" ")[0],
-        "pdf_name": f"Quote {year} {short}.pdf",
+        "pdf_name": t(L, "quote.pdf", year=year, customer=short),
+        "language": L,
     }
     data["draft_text"] = quote_draft_text(data)
-    sources = ["Prices from the ERP"]
+    sources = [t(L, "src.erp")]
     if "dispatch" in env.used:
-        sources.append("Capacity from dispatch")
-    sources.append(f"Terms from the {terms.contract.lower()}")
+        sources.append(t(L, "src.dispatch"))
+    sources.append(t(L, "src.contract", year=terms.year))
     w = WorkResult(
         channel_id=env.channel.id, agent_id=env.agent.agent_id, run_id=env.run_id, kind="quote",
-        title=f"Quote {short} {year}", data=data, sources=sources,
+        title=t(L, "quote.title", customer=short, year=year), data=data, sources=sources,
         answers_message_ids=env.resolve(args.get("answers")),
     )
     env.session.add(w)
@@ -215,12 +221,11 @@ async def create_quote(env: ToolEnv, args: dict):
 
 
 def quote_draft_text(data: dict) -> str:
-    hi = f"Hi {data['greeting_name']}," if data.get("greeting_name") else "Hi,"
+    L = data.get("language")
+    hi = t(L, "quote.hi", name=data["greeting_name"]) if data.get("greeting_name") else t(L, "quote.hi_plain")
     new = [l["destination"] for l in data["lines"] if l.get("new")]
-    text = f"{hi} here's our quote for {data['year']}."
-    if new:
-        text += f" {' and '.join(new)} {'is' if len(new) == 1 else 'are'} now included."
-    return text + " The details are in the document."
+    extra = t(L, "quote.new_one" if len(new) == 1 else "quote.new_many", places=joined(L, new)) if new else ""
+    return t(L, "quote.draft", hi=hi, year=data["year"], new=extra)
 
 
 @tool(
@@ -258,25 +263,28 @@ async def calculate_payment_terms(env: ToolEnv, args: dict):
     cost = outstanding * rate / 100
     share = cost / yearly * 100 if yearly else 0
     surcharge = math.ceil(share * 10) / 10
+    L = env.org.language
     name = (args.get("greeting_name") or "").split(" ")[0]
-    hi = f"Hi {name}," if name else "Hi,"
+    hi = t(L, "quote.hi", name=name) if name else t(L, "quote.hi_plain")
+    pct = number(L, surcharge, 1)
     data = {
         "current_days": cur,
         "requested_days": req,
         "rows": [
-            {"label": "Customer pays on average", "value": f"{extra_days} days later"},
-            {"label": "Extra outstanding", "value": f"about {eur(round_to(outstanding, 100))}"},
-            {"label": f"Cost at {rate:g} % interest", "value": f"about {eur(round_to(cost, 50))} a year"},
-            {"label": "Share of revenue", "value": f"about {share:.2f} %"},
+            {"label": t(L, "pay.later"), "value": t(L, "pay.later_v", days=extra_days)},
+            {"label": t(L, "pay.outstanding"), "value": t(L, "pay.about", v=money(L, round_to(outstanding, 100)))},
+            {"label": t(L, "pay.cost", rate=number(L, rate)), "value": t(L, "pay.cost_v", amount=money(L, round_to(cost, 50)))},
+            {"label": t(L, "pay.share"), "value": t(L, "pay.about", v=f"{number(L, round(share, 2))} %")},
         ],
-        "note": f"Suggestion: {req} days for {surcharge:g} % higher prices. Or {cur} days, then the quote stays as it is.",
-        "draft_text": f"{hi} {req} days works if prices go up by {surcharge:g} %. With {cur} days the quote stays as it is. Which works better for you?",
+        "note": t(L, "pay.note", req=req, cur=cur, pct=pct),
+        "draft_text": t(L, "pay.draft", hi=hi, req=req, cur=cur, pct=pct),
         "surcharge_pct": surcharge,
+        "language": L,
     }
     w = WorkResult(
         channel_id=env.channel.id, agent_id=env.agent.agent_id, run_id=env.run_id, kind="payment_terms",
-        title=f"{req} instead of {cur} days", data=data,
-        sources=["Revenue from the quote draft", "Interest rate from the settings"],
+        title=t(L, "pay.title", req=req, cur=cur), data=data,
+        sources=[t(L, "src.quote"), t(L, "src.rate")],
         answers_message_ids=env.resolve(args.get("answers")),
     )
     env.session.add(w)

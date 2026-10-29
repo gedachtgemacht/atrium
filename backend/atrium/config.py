@@ -37,6 +37,17 @@ class Settings(BaseSettings):
     whisper_model: str = "small"
     whisper_language: str = ""
 
+    # Email. Without a host, mails are written to data/outbox as .eml files.
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from: str = "Atrium <atrium@localhost>"
+    smtp_security: str = "starttls"  # starttls | ssl | none
+    # Wait this long before emailing someone who is offline; a burst of messages becomes one email.
+    notify_delay_seconds: int = 600
+    guest_notify_delay_seconds: int = 300
+
     guest_link_days: int = 90
     max_upload_mb: int = 20
 

@@ -32,6 +32,7 @@ class AppState:
     memory_delay: float = 1.5
     presence: object = None  # atrium.rooms.presence.Presence, set in main
     notes: object = None  # atrium.rooms.notes.NotesService, set in main
+    notifier: object = None  # atrium.notify.Notifier, set in main
     agent_ids: dict = field(default_factory=dict)  # slug -> agent.id
     agent_permissions: dict = field(default_factory=dict)  # agent.id -> permission line
 

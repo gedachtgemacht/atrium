@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { list, t } from '../lib/i18n.svelte'
   import { api } from '../lib/api'
   import Avatar from '../lib/Avatar.svelte'
   import { firstName, parts, size, time } from '../lib/format'
@@ -19,20 +20,23 @@
   const me = $derived(store.me?.id)
   const a = $derived(message.author)
   const mine = $derived(a.kind === 'user' && a.id === me)
-  const tag = $derived(a.kind === 'agent' ? 'Agent' : mine ? (a.label ? `${a.label}, you` : 'You') : a.label)
+  const tag = $derived(
+    a.kind === 'agent' ? t('msg.agent')
+      : a.kind === 'guest' ? (a.label ? t('msg.guest_from', { company: a.label }) : t('msg.guest'))
+      : mine ? (a.label ? t('msg.tag_you', { label: a.label }) : t('common.You'))
+      : a.label,
+  )
   const canEdit = $derived(mine && !message.pulled_from)
   const canDelete = $derived(canEdit || (a.kind === 'agent' && where !== 'shared'))
   const marks = $derived(rememberedAs(message.memory_marks.map((m) => m.kind)))
 
   function rememberedAs(kinds: string[]) {
-    const words = { decided: 'decision', open: 'open question', committed: 'promise' } as Record<string, string>
-    const uniq = [...new Set(kinds)].map((k) => words[k] ?? k)
-    if (!uniq.length) return ''
-    return 'Remembered as ' + (uniq.length === 1 ? uniq[0] : `${uniq.slice(0, -1).join(', ')} and ${uniq[uniq.length - 1]}`)
+    const uniq = [...new Set(kinds)].map((k) => t(`mem.word.${k}`))
+    return uniq.length ? t('msg.remembered', { kinds: list(uniq) }) : ''
   }
 
   function by(name: string, id: string | null) {
-    return id === me ? 'you' : firstName(name)
+    return id === me ? t('common.you') : firstName(name)
   }
 
   async function pull(e: SubmitEvent) {
@@ -46,7 +50,7 @@
       store.backroomOpen = true
       setTimeout(() => store.flash(copy.id), 250)
     } catch (err) {
-      store.toast('Pulling didn\'t work. Try again.')
+      store.toast(t('msg.pull_failed'))
     } finally {
       busy = false
     }
@@ -89,7 +93,7 @@
 {#if where === 'backroom' && message.pulled_from}
   <div class="pull-card" class:flash={store.flashId === message.id} bind:this={el} id="m-{message.id}">
     <div class="pull-meta">{@html icons.arrow()}
-      {message.pulled_from.by_id === me ? 'You' : firstName(message.pulled_from.by_name)} pulled this in from the customer channel, {time(message.pulled_from.at)}
+      {message.pulled_from.by_id === me ? t('msg.pulled_card_me', { time: time(message.pulled_from.at) }) : t('msg.pulled_card', { who: firstName(message.pulled_from.by_name), time: time(message.pulled_from.at) })}
     </div>
     <blockquote>
       <Avatar kind={a.kind} size="s" initials={a.initials} tone={a.tone} />
@@ -109,22 +113,22 @@
         <span class="name">{a.name}</span>
         {#if tag}<span class="tag" class:guest={a.kind === 'guest'} class:agent={a.kind === 'agent'}>{tag}</span>{/if}
         <span class="time">{time(message.created_at)}</span>
-        {#if message.edited_at}<span class="edited">edited</span>{/if}
+        {#if message.edited_at}<span class="edited">{t('msg.edited')}</span>{/if}
         {#if (canEdit || canDelete) && !editing}
           <span class="msg-tools">
-            {#if canEdit}<button onclick={startEdit}>Edit</button>{/if}
-            {#if canDelete}<button class:danger={confirmDelete} onclick={remove}>{confirmDelete ? 'Really delete?' : 'Delete'}</button>{/if}
+            {#if canEdit}<button onclick={startEdit}>{t('msg.edit')}</button>{/if}
+            {#if canDelete}<button class:danger={confirmDelete} onclick={remove}>{confirmDelete ? t('msg.really_delete') : t('msg.delete')}</button>{/if}
           </span>
         {/if}
       </div>
       {#if editing}
         <form class="edit-box" onsubmit={saveEdit}>
-          <label class="sr" for="edit-{message.id}">Edit message</label>
+          <label class="sr" for="edit-{message.id}">{t('msg.edit_label')}</label>
           <!-- svelte-ignore a11y_autofocus -->
           <textarea id="edit-{message.id}" bind:value={editText} autofocus
             onkeydown={(e) => { if (e.key === 'Escape') editing = false; if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); (e.currentTarget as HTMLTextAreaElement).form?.requestSubmit() } }}></textarea>
-          <div class="row"><button class="btn small primary">Save</button><button type="button" class="btn small" onclick={() => (editing = false)}>Cancel</button></div>
-          {#if where === 'shared'}<p class="composer-hint" style="margin:0">{store.current?.partner_name || 'The customer'} sees the new text, marked as edited.</p>{/if}
+          <div class="row"><button class="btn small primary">{t('msg.save')}</button><button type="button" class="btn small" onclick={() => (editing = false)}>{t('msg.cancel')}</button></div>
+          {#if where === 'shared'}<p class="composer-hint" style="margin:0">{t('msg.edit_shared_hint', { partner: store.current?.partner_name || t('msg.customer') })}</p>{/if}
         </form>
       {:else if message.body}
         <p class="body">{#each parts(message.body) as p}{#if p.mention}<span class="mention">{p.text}</span>{:else}{p.text}{/if}{/each}</p>
@@ -137,17 +141,17 @@
       {/each}
       {#if where === 'shared' && a.kind === 'guest'}
         {#if message.pulled}
-          <div class="pulled">{@html icons.lock()}Pulled into the backroom by {by(message.pulled.by_name, message.pulled.by_id)}, {time(message.pulled.at)}</div>
+          <div class="pulled">{@html icons.lock()}{message.pulled.by_id === me ? t('msg.pulled_by_me', { time: time(message.pulled.at) }) : t('msg.pulled_by', { who: by(message.pulled.by_name, message.pulled.by_id), time: time(message.pulled.at) })}</div>
         {:else if pulling}
           <form class="pull-form" onsubmit={pull}>
-            <label class="sr" for="note-{message.id}">Note for the backroom</label>
+            <label class="sr" for="note-{message.id}">{t('msg.pull_note_label')}</label>
             <!-- svelte-ignore a11y_autofocus -->
-            <input id="note-{message.id}" placeholder="Note for the backroom, like @QuoteAgent (optional)" bind:value={note} autofocus />
-            <button class="btn small primary" disabled={busy}>Pull in</button>
-            <button class="btn small" type="button" onclick={() => (pulling = false)}>Cancel</button>
+            <input id="note-{message.id}" placeholder={t('msg.pull_note')} bind:value={note} autofocus />
+            <button class="btn small primary" disabled={busy}>{t('msg.pull_in')}</button>
+            <button class="btn small" type="button" onclick={() => (pulling = false)}>{t('msg.cancel')}</button>
           </form>
         {:else}
-          <button class="pull-btn" onclick={() => (pulling = true)}>{@html icons.arrow()}Pull into backroom</button>
+          <button class="pull-btn" onclick={() => (pulling = true)}>{@html icons.arrow()}{t('msg.pull')}</button>
         {/if}
       {/if}
     </div>

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { api, ApiError } from '../lib/api'
+  import { t } from '../lib/i18n.svelte'
 
   let { onIn }: { onIn: () => void } = $props()
   let email = $state('')
@@ -15,7 +16,7 @@
       await api('/api/auth/login', { body: { email, password } })
       onIn()
     } catch (err) {
-      error = err instanceof ApiError ? err.message : 'That didn\'t work. Try again.'
+      error = err instanceof ApiError && err.status === 401 ? t('login.wrong') : t('login.failed')
     } finally {
       busy = false
     }
@@ -25,10 +26,10 @@
 <main class="center">
   <form class="card" onsubmit={submit}>
     <h1>Atrium</h1>
-    <p>Sign in with your work account.</p>
-    <label class="field">Email<input type="email" autocomplete="username" required bind:value={email} /></label>
-    <label class="field">Password<input type="password" autocomplete="current-password" required bind:value={password} /></label>
+    <p>{t('login.intro')}</p>
+    <label class="field">{t('login.email')}<input type="email" autocomplete="username" required bind:value={email} /></label>
+    <label class="field">{t('login.password')}<input type="password" autocomplete="current-password" required bind:value={password} /></label>
     {#if error}<p class="error" role="alert">{error}</p>{/if}
-    <button class="btn primary" type="submit" disabled={busy}>Sign in</button>
+    <button class="btn primary" type="submit" disabled={busy}>{t('login.submit')}</button>
   </form>
 </main>

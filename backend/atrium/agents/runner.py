@@ -25,28 +25,38 @@ async def sync_agents(state, session: AsyncSession) -> None:
     org = (await session.execute(select(Organization).limit(1))).scalar_one_or_none()
     if org is None:
         return
+    from .config import agent_name, agent_permission
+
     rows = {a.slug: a for a in (await session.execute(select(Agent))).scalars()}
     for cfg in state.agents.values():
         row = rows.get(cfg.slug)
+        name = agent_name(cfg, org.language)
         if row is None:
-            row = Agent(org_id=org.id, slug=cfg.slug, handle=cfg.handle, name=cfg.name, initial=cfg.initial)
+            row = Agent(org_id=org.id, slug=cfg.slug, handle=cfg.handle, name=name, initial=cfg.initial)
             session.add(row)
         else:
-            row.handle, row.name, row.initial, row.is_active = cfg.handle, cfg.name, cfg.initial, True
+            row.handle, row.name, row.initial, row.is_active = cfg.handle, name, cfg.initial, True
     for slug, row in rows.items():
         if slug not in state.agents:
             row.is_active = False
     await session.commit()
     state.agent_ids = {a.slug: a.id for a in (await session.execute(select(Agent))).scalars()}
-    state.agent_permissions = {state.agent_ids[c.slug]: c.permission for c in state.agents.values() if c.slug in state.agent_ids}
+    state.agent_permissions = {state.agent_ids[c.slug]: agent_permission(c, org.language)
+                               for c in state.agents.values() if c.slug in state.agent_ids}
 
 
-def system_prompt(cfg: AgentConfig, org: Organization) -> str:
-    return cfg.system.format(org=org.name, today=date.today().isoformat())
+def system_prompt(cfg: AgentConfig, org: Organization, language: str | None = None) -> str:
+    from ..i18n import t
+
+    lang_name = t(language or org.language, "language_name")
+    return cfg.system.format(org=org.name, today=date.today().isoformat(), language=lang_name)
 
 
 def actor_for(state, cfg: AgentConfig, org: Organization, scope) -> AgentActor:
-    return AgentActor(agent_id=state.agent_ids[cfg.slug], org_id=org.id, name=cfg.name, scope_channel_ids=frozenset(scope))
+    from .config import agent_name
+
+    return AgentActor(agent_id=state.agent_ids[cfg.slug], org_id=org.id, name=agent_name(cfg, org.language),
+                      scope_channel_ids=frozenset(scope))
 
 
 async def loop(state, ctx: BuiltContext, cfg: AgentConfig, env: ToolEnv, run_id, provider_name=None) -> str:
@@ -121,7 +131,7 @@ async def run_mention(state, cfg: AgentConfig, channel_id: uuid.UUID, trigger_id
             ctx = builder.build()
             env = env_for(state, session, actor, channel, org, builder.labels, run.id)
             text = await loop(state, ctx, cfg, env, run.id, org.llm_provider)
-            msg = await post_message(state, session, actor, channel, text or "Done.")
+            msg = await post_message(state, session, actor, channel, text or "Done.", started_by=user_id)
             # A result answers a customer message. If the model didn't say which, take the latest pulled one.
             latest_pulled = next((m.id for m in reversed(history) if m.pulled_from_id), None)
             for w in env.created:
@@ -137,7 +147,9 @@ async def run_mention(state, cfg: AgentConfig, channel_id: uuid.UUID, trigger_id
             await _finish(session, run, "done")
         except ProviderError as e:
             await session.rollback()
-            await post_message(state, session, actor, channel, "I couldn't reach the language model, so nothing was calculated. Try again in a moment.")
+            from ..i18n import t
+
+            await post_message(state, session, actor, channel, t(org.language, "agent.no_model"))
             await _finish(session, run, "failed", str(e))
         except Exception as e:
             await session.rollback()

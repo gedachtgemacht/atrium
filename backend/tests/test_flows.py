@@ -208,14 +208,13 @@ def test_guest_invite_join_chat_revoke(client, lena):
     assert "/g/" in inv["link"]
     token = inv["link"].split("/g/")[1].split("#")[0]
     info = client.post("/g/api/join-info", json={"token": token}, headers={"X-Requested-With": "atrium"}).json()
-    assert info == {"company_name": "Kessler Logistik", "needs_name": True, "suggested_name": ""}
+    assert info == {"company_name": "Kessler Logistik", "needs_name": True, "suggested_name": "", "language": "en"}
     client.cookies.clear()
     bad = client.post("/g/api/session", json={"token": token, "name": " "}, headers={"X-Requested-With": "atrium"})
     assert bad.status_code == 400
     petra = guest(client, inv["link"], "Petra Lang")
     ch = petra.get("/g/api/channel").json()
-    assert ch["notice"] == ("Only people from Kessler Logistik write here. Messages are stored on their server in Frankfurt. "
-                            "Kessler Logistik may work on single messages internally with AI.")
+    assert ch["company_name"] == "Kessler Logistik" and ch["server_location"] == "Frankfurt" and ch["language"] == "en"
     assert any(m["name"] == "Petra Lang" for m in ch["members"])
     assert petra.post("/g/api/messages", json={"body": "Hello!"}).status_code == 200
     # Same link on a second device: same guest, name kept.
@@ -331,3 +330,26 @@ def test_backroom_copy_cannot_be_edited_and_agent_messages_can_be_removed(client
     shared, request, copy, work = setup_quote(client, lena)
     assert lena.patch(f"/api/messages/{copy['id']}", json={"body": "rewritten"}).status_code == 403
     assert lena.delete(f"/api/messages/{work['message_id']}").status_code == 200
+
+
+def test_quote_and_payment_terms_in_german(client, lena):
+    lena.patch("/api/admin/settings", json={"language": "de"})
+    shared, request, copy, work = setup_quote(client, lena)
+    assert work["title"] == "Angebot Hollmann Bau 2027"
+    assert work["sources"] == ["Preise aus dem ERP", "Kapazität aus der Dispo", "Konditionen aus dem Vertrag 2026"]
+    assert "Unsere eigenen LKW schaffen im ersten Monat 4 der 8 Ladungen nach Erfurt" in work["data"]["note"]
+    draft = lena.post(f"/api/work-results/{work['id']}/stage").json()
+    assert draft["body"] == "Hallo Sarah, hier unser Angebot für 2027. Erfurt ist neu dabei. Die Details stehen im Dokument."
+    assert draft["attachments"][0]["filename"] == "Angebot 2027 Hollmann Bau.pdf"
+    assert draft["attachments"][0]["summary"] == "3 Strecken, 40 Ladungen, 23.488 € im Monat"
+    msgs = lena.get(f"/api/channels/{shared['id']}/messages").json()
+    question = next(m for m in msgs if "45 day" in m["body"])
+    lena.post(f"/api/messages/{question['id']}/pull", json={"note": "@QuoteAgent calculate the payment terms"})
+    drain(client)
+    back = lena.get(f"/api/channels/{shared['backroom_id']}/messages").json()
+    pay = next(w for m in back for w in m["work_results"] if w["kind"] == "payment_terms")
+    rows = {r["label"]: r["value"] for r in pay["data"]["rows"]}
+    assert rows == {"Kunde zahlt im Schnitt": "15 Tage später", "Länger offen": "etwa 11.600 €",
+                    "Kosten bei 6 % Zins": "rund 700 € im Jahr", "Anteil am Umsatz": "etwa 0,25 %"}
+    assert pay["data"]["draft_text"] == ("Hallo Sarah, 45 Tage gehen, wenn die Preise um 0,3 % steigen. "
+                                         "Mit 30 Tagen bleibt das Angebot, wie es ist. Was passt euch besser?")

@@ -5,16 +5,28 @@ from html import escape
 from .config import get_settings
 
 
-def _eur(n: float) -> str:
-    return f"€{n:,.0f}"
+PDF_TEXT = {
+    "en": {"title": "Quote", "for": "for", "route": "Route", "loads": "Loads a month", "price": "Price per load", "month": "A month",
+           "total": "Per month", "new": "new"},
+    "de": {"title": "Angebot", "for": "für", "route": "Strecke", "loads": "Ladungen im Monat", "price": "Preis je Ladung",
+           "month": "Im Monat", "total": "Pro Monat", "new": "neu"},
+}
 
 
 def quote_pdf(data: dict, org_name: str, sender_name: str) -> bytes:
+    from .i18n import lang, money
+
+    L = lang(data.get("language"))
+    T = PDF_TEXT[L]
+
+    def _eur(n: float) -> str:
+        return money(L, n)
+
     from weasyprint import HTML
 
     fonts = get_settings().frontend_dist.parent / "public" / "fonts"
     rows = "".join(
-        f"<tr><td>{escape(l['origin'])} → {escape(l['destination'])}{' <span class=new>new</span>' if l.get('new') else ''}</td>"
+        f"<tr><td>{escape(l['origin'])} → {escape(l['destination'])}{f" <span class=new>{T['new']}</span>" if l.get('new') else ''}</td>"
         f"<td class=num>{l['loads']}</td><td class=num>{_eur(l['rate'])}</td><td class=num>{_eur(l['loads'] * l['rate'])}</td></tr>"
         for l in data["lines"]
     )
@@ -36,11 +48,11 @@ tfoot td {{ font-weight: 700; border-top: 1.5px solid #1C2430; }}
 .note {{ margin-top: 14pt; padding: 8pt 10pt; background: #F2F5F3; border-radius: 4pt; }}
 .from {{ margin-top: 26pt; color: #5B6773; }}
 </style></head><body>
-<h1>Quote {data['year']}</h1>
-<p class=sub>{escape(org_name)} for {escape(data['customer'])}</p>
-<table><thead><tr><th>Route</th><th class=num>Loads a month</th><th class=num>Price per load</th><th class=num>A month</th></tr></thead>
+<h1>{T['title']} {data['year']}</h1>
+<p class=sub>{escape(org_name)} {T['for']} {escape(data['customer'])}</p>
+<table><thead><tr><th>{T['route']}</th><th class=num>{T['loads']}</th><th class=num>{T['price']}</th><th class=num>{T['month']}</th></tr></thead>
 <tbody>{rows}</tbody>
-<tfoot><tr><td>Per month</td><td class=num>{loads}</td><td></td><td class=num>{_eur(data['total_per_month'])}</td></tr></tfoot></table>
+<tfoot><tr><td>{T['total']}</td><td class=num>{loads}</td><td></td><td class=num>{_eur(data['total_per_month'])}</td></tr></tfoot></table>
 <p class=from>{escape(sender_name)}, {escape(org_name)}</p>
 </body></html>"""
     return HTML(string=html).write_pdf()

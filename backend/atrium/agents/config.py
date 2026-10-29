@@ -18,6 +18,8 @@ class AgentConfig:
     system: str = ""
     tools: tuple[str, ...] = field(default_factory=tuple)
     hidden: bool = False
+    # Translations, e.g. {"de": {"name": "Angebotsagent", "description": "...", "permission": "..."}}
+    translations: dict = field(default_factory=dict)
 
 
 def load_agents(directory: Path) -> dict[str, AgentConfig]:
@@ -29,6 +31,23 @@ def load_agents(directory: Path) -> dict[str, AgentConfig]:
             role=raw.get("role", "mention"), description=raw.get("description", ""),
             permission=raw.get("permission", ""), system=raw.get("system", ""),
             tools=tuple(raw.get("tools") or ()), hidden=bool(raw.get("hidden", False)),
+            translations=raw.get("translations") or {},
         )
         out[cfg.slug] = cfg
     return out
+
+
+def _tr(cfg: AgentConfig, lang: str | None, key: str) -> str:
+    return (cfg.translations.get((lang or "")[:2]) or {}).get(key) or getattr(cfg, key)
+
+
+def agent_name(cfg: AgentConfig, lang: str | None) -> str:
+    return _tr(cfg, lang, "name")
+
+
+def agent_description(cfg: AgentConfig, lang: str | None) -> str:
+    return _tr(cfg, lang, "description")
+
+
+def agent_permission(cfg: AgentConfig, lang: str | None) -> str:
+    return _tr(cfg, lang, "permission")

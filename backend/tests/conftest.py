@@ -50,7 +50,7 @@ PASSWORD = "test-password-123"
 @pytest.fixture
 def settings(tmp_path):
     return Settings(data_dir=tmp_path, llm_provider="fake", anthropic_api_key="", whisper_model="fake",
-                    frontend_dist=tmp_path / "nofrontend")
+                    frontend_dist=tmp_path / "nofrontend", smtp_host="", notify_delay_seconds=0, guest_notify_delay_seconds=0)
 
 
 @pytest.fixture

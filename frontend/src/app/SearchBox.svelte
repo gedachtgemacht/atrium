@@ -1,6 +1,7 @@
 <script lang="ts">
   import { api } from '../lib/api'
   import { time } from '../lib/format'
+  import { t } from '../lib/i18n.svelte'
   import { icons } from '../lib/icons'
   import type { AskAnswer, Message } from '../lib/types'
   import { store } from './store.svelte'
@@ -62,20 +63,20 @@
 
   function where(h: Hit) {
     if (h.channel_kind === 'backroom') return h.channel_name
-    if (h.channel_kind === 'shared') return `${h.channel_name}, customer channel`
+    if (h.channel_kind === 'shared') return t('search.customer', { name: h.channel_name })
     return `#${h.channel_name}`
   }
 </script>
 
 <form class="ask-global" role="search" onsubmit={ask}>
   {@html icons.search()}
-  <label class="sr" for="globalInput">Search or ask</label>
-  <input id="globalInput" type="search" placeholder="Search or ask" autocomplete="off" bind:value={q} oninput={onInput}
+  <label class="sr" for="globalInput">{t('search.label')}</label>
+  <input id="globalInput" type="search" placeholder={t('search.label')} autocomplete="off" bind:value={q} oninput={onInput}
     onfocus={() => q && (open = true)} onblur={() => setTimeout(() => (open = false), 200)} />
   {#if open && q.trim()}
     <div class="search-pop">
       {#if hits.length}
-        <h3>Messages you can read</h3>
+        <h3>{t('search.readable')}</h3>
         {#each hits as h (h.message.id)}
           <button type="button" class="search-hit" onclick={() => jump(h.message.channel_id, h.message.id)}>
             <span class="where">{where(h)} · {h.message.author.name} · {time(h.message.created_at)}</span>
@@ -83,17 +84,17 @@
           </button>
         {/each}
       {:else}
-        <h3>No messages found</h3>
+        <h3>{t('search.none')}</h3>
       {/if}
-      <button type="submit" class="search-ask">{@html icons.lock()} Ask the backroom: “{q.trim()}”</button>
-      {#if asking}<p class="hint">Thinking</p>{/if}
+      <button type="submit" class="search-ask">{@html icons.lock()} {t('search.ask', { q: q.trim() })}</button>
+      {#if asking}<p class="hint">{t('common.thinking')}</p>{/if}
       {#if answer}
         <div class="answer">
           <p class="q">{answer.question}</p>
           <p>{answer.answer}</p>
           <div class="srcs">
             {#each answer.sources as s}
-              <button type="button" class="link-btn" onclick={() => s.kind === 'message' ? jump(s.channel_id, s.id) : jump(s.channel_id, s.id)}>Show source</button>
+              <button type="button" class="link-btn" onclick={() => jump(s.channel_id, s.id)}>{t('common.show_source')}</button>
             {/each}
           </div>
         </div>

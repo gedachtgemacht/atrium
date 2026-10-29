@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { list, t } from '../lib/i18n.svelte'
   import { api } from '../lib/api'
   import { firstName, when } from '../lib/format'
   import { icons } from '../lib/icons'
@@ -14,12 +15,12 @@
 
   const entries = $derived(store.memory[channelId] ?? [])
   const groups = $derived([
-    { kind: 'decided', title: 'Decided', empty: 'Nothing decided yet.' },
-    { kind: 'open', title: 'Open', empty: 'Nothing open. Questions from the customer channel land here once you pull them in.' },
-    { kind: 'committed', title: 'Promised', empty: 'No promises yet.' },
+    { kind: 'decided', title: t('mem.decided'), empty: t('mem.none_decided') },
+    { kind: 'open', title: t('mem.open'), empty: t('mem.none_open') },
+    { kind: 'committed', title: t('mem.committed'), empty: t('mem.none_committed') },
   ])
-  const guestName = $derived(firstName(store.details[shared.id]?.guests.find((g) => g.joined)?.name ?? 'the customer'))
-  const suggestions = $derived(["What's still open?", `What does ${guestName} want?`, 'What did we decide?', 'Who promised what?'])
+  const guestName = $derived(firstName(store.details[shared.id]?.guests.find((g) => g.joined)?.name ?? t('ask.the_customer')))
+  const suggestions = $derived([t('ask.s1'), t('ask.s2', { name: guestName }), t('ask.s3'), t('ask.s4')])
 
   $effect(() => {
     if (store.globalQuestion) {
@@ -30,13 +31,13 @@
   })
 
   function meta(e: MemoryEntry) {
-    if (e.status === 'done') return `${e.done_note || 'Done'}${e.done_at ? `, ${when(e.done_at)}` : ''}`
+    if (e.status === 'done') return `${e.done_note || t('mem.done')}${e.done_at ? `, ${when(e.done_at)}` : ''}`
     const bits = []
     if (e.owner_name) bits.push(e.owner_name)
     if (e.due_label) bits.push(e.due_label)
     if (e.source_label) {
       const [who, at] = e.source_label.split(', ')
-      if (!e.owner_name || firstName(who) !== firstName(e.owner_name)) bits.push(`from ${who}`)
+      if (!e.owner_name || firstName(who) !== firstName(e.owner_name)) bits.push(t('mem.from', { name: who }))
       if (at) bits.push(when(at))
     }
     return bits.join(', ')
@@ -96,7 +97,7 @@
 </script>
 
 <div class="back-body mem" role="tabpanel">
-  <p class="mem-sub">Kept from the backroom and from everything you pull in. A click shows the source.</p>
+  <p class="mem-sub">{t('mem.sub')}</p>
   {#each groups as g (g.kind)}
     {@const list = entries.filter((e) => e.kind === g.kind)}
     <div class="mem-group">
@@ -107,17 +108,17 @@
             <li class:done={e.status === 'done'}>
               {#if editing === e.id}
                 <form class="mem-edit" onsubmit={(ev) => save(e, ev)}>
-                  <label class="sr" for="t-{e.id}">Text</label>
+                  <label class="sr" for="t-{e.id}">{t('mem.text')}</label>
                   <input id="t-{e.id}" bind:value={draft.text} required maxlength="500" />
                   <div class="row">
-                    <label class="sr" for="k-{e.id}">Kind</label>
+                    <label class="sr" for="k-{e.id}">{t('mem.kind')}</label>
                     <select id="k-{e.id}" bind:value={draft.kind}>
-                      <option value="decided">Decided</option><option value="open">Open</option><option value="committed">Promised</option>
+                      <option value="decided">{t('mem.decided')}</option><option value="open">{t('mem.open')}</option><option value="committed">{t('mem.committed')}</option>
                     </select>
-                    <input aria-label="Owner" placeholder="Owner" bind:value={draft.owner_name} />
-                    <input aria-label="Due" placeholder="Due, like by Friday" bind:value={draft.due_label} />
+                    <input aria-label={t('mem.owner')} placeholder={t('mem.owner')} bind:value={draft.owner_name} />
+                    <input aria-label={t('mem.due')} placeholder={t('mem.due')} bind:value={draft.due_label} />
                   </div>
-                  <div class="row"><button class="btn small primary">Save</button><button type="button" class="btn small" onclick={() => (editing = null)}>Cancel</button></div>
+                  <div class="row"><button class="btn small primary">{t('common.save')}</button><button type="button" class="btn small" onclick={() => (editing = null)}>{t('common.cancel')}</button></div>
                 </form>
               {:else}
                 <button class="mem-item" onclick={() => jump(e)} disabled={!e.source_message_id}>
@@ -126,10 +127,10 @@
                 </button>
                 <span class="mem-tools">
                   {#if e.kind !== 'decided'}
-                    <button title={e.status === 'done' ? 'Mark as not done' : 'Mark as done'} aria-label={e.status === 'done' ? 'Mark as not done' : 'Mark as done'} onclick={() => toggleDone(e)}>{@html icons.check(14)}</button>
+                    <button title={e.status === 'done' ? t('mem.mark_open') : t('mem.mark_done')} aria-label={e.status === 'done' ? t('mem.mark_open') : t('mem.mark_done')} onclick={() => toggleDone(e)}>{@html icons.check(14)}</button>
                   {/if}
-                  <button title="Edit" aria-label="Edit" onclick={() => edit(e)}>{@html icons.pen(13)}</button>
-                  <button title="Delete" aria-label="Delete" onclick={() => remove(e)}>{@html icons.trash()}</button>
+                  <button title={t('msg.edit')} aria-label={t('msg.edit')} onclick={() => edit(e)}>{@html icons.pen(13)}</button>
+                  <button title={t('msg.delete')} aria-label={t('msg.delete')} onclick={() => remove(e)}>{@html icons.trash()}</button>
                 </span>
               {/if}
             </li>
@@ -142,15 +143,15 @@
   {/each}
 
   <div class="ask">
-    <h3><label for="ask-{channelId}">Ask the backroom</label></h3>
+    <h3><label for="ask-{channelId}">{t('ask.title')}</label></h3>
     <form onsubmit={ask}>
-      <input id="ask-{channelId}" type="text" placeholder="What's still open?" autocomplete="off" bind:value={question} />
-      <button class="btn" type="submit" disabled={asking}>Ask</button>
+      <input id="ask-{channelId}" type="text" placeholder={t('ask.placeholder')} autocomplete="off" bind:value={question} />
+      <button class="btn" type="submit" disabled={asking}>{t('ask.button')}</button>
     </form>
     <div class="suggest">
       {#each suggestions as s}<button type="button" onclick={() => { question = s; ask() }}>{s}</button>{/each}
     </div>
-    {#if asking}<p class="hint" style="margin-top:8px">Thinking</p>{/if}
+    {#if asking}<p class="hint" style="margin-top:8px">{t('common.thinking')}</p>{/if}
     {#if answer}
       <div class="answer" aria-live="polite">
         <p class="q">{answer.question}</p>
@@ -158,7 +159,7 @@
         {#if answer.sources.length}
           <div class="srcs">
             {#each answer.sources as s, i}
-              <button class="link-btn" type="button" onclick={() => showSource(s)}>{answer.sources.length > 1 ? `Source ${i + 1}` : 'Show source'}</button>
+              <button class="link-btn" type="button" onclick={() => showSource(s)}>{answer.sources.length > 1 ? t('common.source_n', { n: i + 1 }) : t('common.show_source')}</button>
             {/each}
           </div>
         {/if}

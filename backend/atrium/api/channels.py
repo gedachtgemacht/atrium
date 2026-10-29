@@ -64,7 +64,7 @@ async def channel_out(session, actor: UserActor, ch: Channel, *, detail: bool = 
             now = utcnow()
             out.guests = [
                 GuestInfoOut(id=g.id, name=g.name, company=g.company, expires_at=g.expires_at, revoked_at=g.revoked_at,
-                             created_at=g.created_at, joined=g.name is not None)
+                             created_at=g.created_at, joined=g.name is not None, notify=g.notify)
                 for g in guests
             ]
             out.members += [

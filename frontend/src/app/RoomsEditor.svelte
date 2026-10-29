@@ -2,6 +2,7 @@
   // Shape the floor plans to the company: floors or sites, rooms on a grid, who may go in, where notes go.
   import { onMount } from 'svelte'
   import { api } from '../lib/api'
+  import { t } from '../lib/i18n.svelte'
   import { icons } from '../lib/icons'
   import type { Floor, Room, RoomsPlan } from '../lib/types'
   import PlanGrid from './PlanGrid.svelte'
@@ -17,6 +18,7 @@
   let floorsDraft = $state<Floor[]>([])
   let error = $state('')
   let saved = $state('')
+  let loaded = $state(false)
 
   const floor = $derived(plan.floors.find((f) => f.id === floorId) ?? plan.floors[0])
   const onFloor = $derived(plan.rooms.filter((r) => r.floor_id === floor?.id))
@@ -27,6 +29,7 @@
     const [p, ch] = await Promise.all([api<RoomsPlan>('/api/admin/rooms'), api<ChannelRow[]>('/api/admin/channels')])
     apply(p)
     channels = ch
+    loaded = true
   })
 
   function apply(p: RoomsPlan) {
@@ -76,7 +79,7 @@
       apply(p)
       const r = p.rooms.find((x) => x.name === body.name)
       if (r) edit(r)
-      done('Saved')
+      done(t('admin.saved'))
     } catch (err) {
       error = (err as Error).message
     }
@@ -94,7 +97,7 @@
     try {
       apply(await api<RoomsPlan>(`/api/admin/rooms/${form.id}`, { method: 'DELETE' }))
       form = null
-      done('Room deleted. Anyone inside is back in the hallway.')
+      done(t('rooms.deleted'))
     } catch (err) {
       error = (err as Error).message
     }
@@ -104,43 +107,44 @@
     e?.preventDefault()
     try {
       apply(await api<RoomsPlan>('/api/admin/floors', { method: 'PUT', body: { floors: floorsDraft.map((f) => ({ ...f, columns: Number(f.columns) })) } }))
-      done('Floors saved')
+      done(t('rooms.floors_saved'))
     } catch (err) {
       error = (err as Error).message
     }
   }
 
   function addFloor() {
-    floorsDraft.push({ id: '', name: `Floor ${floorsDraft.length + 1}`, columns: 2 })
+    floorsDraft.push({ id: '', name: t('rooms.new_floor', { n: floorsDraft.length + 1 }), columns: 2 })
   }
 </script>
 
-<p class="hint">Rebuild your office: floors or sites, rooms on a grid, a quiet room, the hallway. Rooms linked to a channel can take notes into it, and can be limited to that channel's members. Who is in a room is never stored.</p>
+<p class="hint">{t('rooms.intro')}</p>
 {#if error}<p class="error" role="alert">{error}</p>{/if}
 {#if saved}<p class="saved" role="status">{saved}</p>{/if}
 
-<h2>Floors and sites</h2>
+{#if loaded}
+<h2>{t('rooms.floors')}</h2>
 <form onsubmit={saveFloors}>
   <ul class="floor-list">
     {#each floorsDraft as f, i (i)}
       <li>
-        <label class="sr" for="fn-{i}">Floor {i + 1} name</label>
+        <label class="sr" for="fn-{i}">{t('rooms.floor_name', { n: i + 1 })}</label>
         <input id="fn-{i}" bind:value={f.name} required maxlength="100" />
-        <label class="sr" for="fc-{i}">Floor {i + 1} columns</label>
-        <input id="fc-{i}" type="number" min="1" max="6" bind:value={f.columns} title="Columns" />
-        <span class="hint" style="margin:0">columns</span>
+        <label class="sr" for="fc-{i}">{t('rooms.floor_cols', { n: i + 1 })}</label>
+        <input id="fc-{i}" type="number" min="1" max="6" bind:value={f.columns} title={t('rooms.columns')} />
+        <span class="hint" style="margin:0">{t('rooms.columns')}</span>
         {#if floorsDraft.length > 1}
-          <button type="button" class="btn small" onclick={() => floorsDraft.splice(i, 1)} aria-label="Remove {f.name}">{@html icons.trash()}</button>
+          <button type="button" class="btn small" onclick={() => floorsDraft.splice(i, 1)} aria-label={t('rooms.remove_floor', { name: f.name })}>{@html icons.trash()}</button>
         {/if}
       </li>
     {/each}
   </ul>
-  <div class="row" style="display:flex;gap:8px"><button type="button" class="btn small" onclick={addFloor}>Add floor or site</button><button class="btn small primary">Save floors</button></div>
+  <div class="row" style="display:flex;gap:8px"><button type="button" class="btn small" onclick={addFloor}>{t('rooms.add_floor')}</button><button class="btn small primary">{t('rooms.save_floors')}</button></div>
 </form>
 
-<h2>Rooms</h2>
+<h2>{t('rooms.rooms')}</h2>
 {#if plan.floors.length > 1}
-  <div class="floors" role="group" aria-label="Floor to edit">
+  <div class="floors" role="group" aria-label={t('rooms.floor_to_edit')}>
     {#each plan.floors as f (f.id)}
       <button aria-pressed={f.id === floor?.id} onclick={() => { floorId = f.id; form = null }}>{f.name}</button>
     {/each}
@@ -153,54 +157,55 @@
         {#snippet room(r, style)}
           <button class="room" class:quiet={r.kind === 'quiet'} class:selected={form?.id === r.id} {style} onclick={() => edit(r)}>
             <span class="room-name">{#if r.members_only}{@html icons.lock(11)}{/if}{r.name}</span>
-            <span class="room-meta">{r.kind === 'hallway' ? 'Hallway' : r.kind === 'quiet' ? 'Quiet room' : r.channel_name ? `Notes to #${r.channel_name}` : 'No notes'}</span>
+            <span class="room-meta">{r.kind === 'hallway' ? t('rooms.kind_hallway') : r.kind === 'quiet' ? t('rooms.kind_quiet') : r.channel_name ? t('rooms.notes_to', { channel: r.channel_name }) : t('rooms.no_notes')}</span>
           </button>
         {/snippet}
         {#snippet empty(c, w)}
           <button class="plan-empty" style="grid-column:{c + 1};grid-row:{w + 1}" onclick={() => cell(c, w)}
-            aria-label={form?.id ? `Move ${form.name} here` : 'New room here'}>{form?.id ? 'Move here' : '+'}</button>
+            aria-label={form?.id ? t('rooms.move_label', { name: form.name }) : t('rooms.new_here')}>{form?.id ? t('rooms.move_here') : '+'}</button>
         {/snippet}
       </PlanGrid>
-      <p class="hint" style="margin-top:8px">Click a free cell to add a room. Select a room, then click a free cell to move it.</p>
+      <p class="hint" style="margin-top:8px">{t('rooms.help')}</p>
     {/if}
   </div>
 
   {#if form}
-    <form onsubmit={save} aria-label={form.id ? `Edit ${form.name}` : 'New room'}>
-      <h3 style="margin:0;font-size:15px">{form.id ? form.name || 'Room' : 'New room'}</h3>
-      <label class="field">Name<input bind:value={form.name} required maxlength="100" /></label>
-      <label class="field">Kind
+    <form onsubmit={save} aria-label={form.id ? t('rooms.edit', { name: form.name }) : t('rooms.new')}>
+      <h3 style="margin:0;font-size:15px">{form.id ? form.name || t('rooms.room') : t('rooms.new')}</h3>
+      <label class="field">{t('rooms.name')}<input bind:value={form.name} required maxlength="100" /></label>
+      <label class="field">{t('rooms.kind')}
         <select bind:value={form.kind}>
-          <option value="normal">Talk room (voice, notes)</option>
-          <option value="quiet">Quiet room (focus, no voice)</option>
-          {#if !hasHallway || form.kind === 'hallway'}<option value="hallway">Hallway (everybody online in no room)</option>{/if}
+          <option value="normal">{t('rooms.opt_normal')}</option>
+          <option value="quiet">{t('rooms.opt_quiet')}</option>
+          {#if !hasHallway || form.kind === 'hallway'}<option value="hallway">{t('rooms.opt_hallway')}</option>{/if}
         </select>
       </label>
       {#if form.kind === 'normal'}
-        <label class="field">Notes go to
+        <label class="field">{t('rooms.notes_go')}
           <select bind:value={form.channel_id}>
-            <option value={null}>No notes in this room</option>
+            <option value={null}>{t('rooms.no_notes_opt')}</option>
             {#each internal as c (c.id)}<option value={c.id}>#{c.name}</option>{/each}
           </select>
         </label>
-        <label class="check"><input type="checkbox" bind:checked={form.members_only} disabled={!form.channel_id} /> Only members of that channel can go in</label>
+        <label class="check"><input type="checkbox" bind:checked={form.members_only} disabled={!form.channel_id} /> {t('rooms.members_only')}</label>
       {/if}
       <div class="row">
-        <label class="field">Floor
+        <label class="field">{t('rooms.floor')}
           <select bind:value={form.floor_id}>{#each plan.floors as f (f.id)}<option value={f.id}>{f.name}</option>{/each}</select>
         </label>
-        <label class="field">Width<input type="number" min="1" max="6" bind:value={form.col_span} /></label>
-        <label class="field">Height<input type="number" min="1" max="4" bind:value={form.row_span} /></label>
+        <label class="field">{t('rooms.width')}<input type="number" min="1" max="6" bind:value={form.col_span} /></label>
+        <label class="field">{t('rooms.height')}<input type="number" min="1" max="4" bind:value={form.row_span} /></label>
       </div>
       <div class="row">
-        <label class="field">Column<input type="number" min="1" max="6" value={form.col + 1} oninput={(e) => (form!.col = Number((e.currentTarget as HTMLInputElement).value) - 1)} /></label>
-        <label class="field">Row<input type="number" min="1" max="12" value={form.row + 1} oninput={(e) => (form!.row = Number((e.currentTarget as HTMLInputElement).value) - 1)} /></label>
+        <label class="field">{t('rooms.column')}<input type="number" min="1" max="6" value={form.col + 1} oninput={(e) => (form!.col = Number((e.currentTarget as HTMLInputElement).value) - 1)} /></label>
+        <label class="field">{t('rooms.row')}<input type="number" min="1" max="12" value={form.row + 1} oninput={(e) => (form!.row = Number((e.currentTarget as HTMLInputElement).value) - 1)} /></label>
       </div>
       <div class="row">
-        <button class="btn primary">{form.id ? 'Save room' : 'Add room'}</button>
-        <button type="button" class="btn" onclick={() => (form = null)}>Close</button>
-        {#if form.id}<button type="button" class="btn danger" onclick={remove}>{confirmDelete ? 'Really delete?' : 'Delete room'}</button>{/if}
+        <button class="btn primary">{form.id ? t('rooms.save') : t('rooms.add')}</button>
+        <button type="button" class="btn" onclick={() => (form = null)}>{t('common.close')}</button>
+        {#if form.id}<button type="button" class="btn danger" onclick={remove}>{confirmDelete ? t('msg.really_delete') : t('rooms.delete')}</button>{/if}
       </div>
     </form>
   {/if}
 </div>
+{/if}

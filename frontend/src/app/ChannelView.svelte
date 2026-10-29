@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { list, t } from '../lib/i18n.svelte'
   import { onMount, tick } from 'svelte'
   import Avatar from '../lib/Avatar.svelte'
   import { dayLabel, firstName } from '../lib/format'
@@ -47,7 +48,7 @@
 
   function sub() {
     if (channel.description) return channel.description
-    if (shared) return `Customer channel with ${partner}. Guests are here by link, without an account.`
+    if (shared) return t('channel.customer_sub', { partner })
     return ''
   }
 </script>
@@ -58,34 +59,34 @@
       <h1>{shared ? channel.name : `#${channel.name}`}</h1>
       {#if sub()}<p class="chan-sub">{sub()}</p>{/if}
       <div class="members">
-        <div class="stack" aria-label="Members">
+        <div class="stack" aria-label={t('channel.members')}>
           {#each people as p (p.id)}
-            <Avatar kind={p.kind} size="s" initials={p.initials} tone={p.tone} title={p.kind === 'guest' ? `${p.name}, guest` : p.name} />
+            <Avatar kind={p.kind} size="s" initials={p.initials} tone={p.tone} title={p.kind === 'guest' ? t('channel.guest_title', { name: p.name }) : p.name} />
           {/each}
         </div>
         {#if shared}
-          <span class="rule-chip" title="Agents can neither read this channel nor write here.">{@html icons.person()} Only people write here</span>
+          <span class="rule-chip" title={t('channel.rule_title')}>{@html icons.person()} {t('channel.only_people')}</span>
         {/if}
       </div>
     </div>
     {#if shared}
       <div class="head-actions">
         {#if guests.length === 1}
-          <button class="btn" onclick={() => (previewGuest = { id: guests[0].id, name: guests[0].name! })}>{@html icons.eye()} View as {firstName(guests[0].name!)}</button>
+          <button class="btn" onclick={() => (previewGuest = { id: guests[0].id, name: guests[0].name! })}>{@html icons.eye()} {t('channel.view_as', { name: firstName(guests[0].name!) })}</button>
         {:else if guests.length > 1}
-          <label class="sr" for="viewas">View as guest</label>
+          <label class="sr" for="viewas">{t('channel.view_as_label')}</label>
           <select id="viewas" class="btn" onchange={(e) => {
             const g = guests.find((x) => x.id === (e.currentTarget as HTMLSelectElement).value)
             if (g) previewGuest = { id: g.id, name: g.name! }
             ;(e.currentTarget as HTMLSelectElement).value = ''
           }}>
-            <option value="">View as …</option>
+            <option value="">{t('channel.view_as_pick')}</option>
             {#each guests as g (g.id)}<option value={g.id}>{g.name}</option>{/each}
           </select>
         {/if}
-        <button class="btn" onclick={() => (inviting = true)}>{@html icons.link()} Invite</button>
+        <button class="btn" onclick={() => (inviting = true)}>{@html icons.link()} {t('channel.invite')}</button>
         <button class="btn back-toggle" aria-controls="backroom" aria-expanded={store.backroomOpen}
-          onclick={() => { store.railOpen = false; store.backroomOpen = !store.backroomOpen }}>{@html icons.lock(14)} Backroom</button>
+          onclick={() => { store.railOpen = false; store.backroomOpen = !store.backroomOpen }}>{@html icons.lock(14)} {t('channel.backroom')}</button>
       </div>
     {/if}
   </div>
@@ -95,13 +96,13 @@
       {#if newDay(i)}<div class="day">{dayLabel(m.created_at)}</div>{/if}
       <MessageItem message={m} where={shared ? 'shared' : 'internal'} />
     {:else}
-      <p class="empty-feed">No messages yet.</p>
+      <p class="empty-feed">{t('channel.empty')}</p>
     {/each}
   </div>
 
   <Composer {channel}
-    placeholder={shared ? `Message to ${partner}` : `Message #${channel.name}`}
-    hint={shared ? `${partner} reads along here. Agents don't read this channel and don't write here.` : 'Mention an agent like @QuoteAgent to bring it in. It only sees this channel.'} />
+    placeholder={shared ? t('composer.to_partner', { partner }) : t('composer.to_channel', { channel: channel.name })}
+    hint={shared ? t('composer.hint_shared', { partner }) : t('composer.hint_internal')} />
 </main>
 
 {#if inviting}<InviteDialog {channel} onclose={() => { inviting = false; store.loadDetail(channel.id) }} />{/if}

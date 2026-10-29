@@ -48,7 +48,7 @@ class Voice {
       this.connected = true
       await room.localParticipant.setMicrophoneEnabled(!this.muted)
     } catch (e) {
-      this.error = 'Voice is not available right now.'
+      this.error = 'live.voice_error'
       this.connected = false
     }
   }
@@ -98,7 +98,7 @@ class Voice {
       src.connect(node)
       this.#notes = { ctx, stream, node }
     } catch {
-      this.error = 'No microphone access, so notes can\'t hear you.'
+      this.error = 'live.mic_error'
     }
   }
 

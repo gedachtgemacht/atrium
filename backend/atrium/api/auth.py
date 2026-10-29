@@ -43,10 +43,30 @@ async def logout(response: Response, atrium_session: str | None = Cookie(default
 async def me_out(session: AsyncSession, user: User) -> MeOut:
     org = await session.get(Organization, user.org_id)
     return MeOut(id=user.id, name=user.name, initials=user.initials, tone=user.tone, email=user.email,
-                 role_label=user.role_label, is_admin=user.is_admin, org_name=org.name, server_location=org.server_location)
+                 role_label=user.role_label, is_admin=user.is_admin, org_name=org.name, server_location=org.server_location,
+                 locale=user.locale, language=user.locale or org.language, org_language=org.language,
+                 notify_email=user.notify_email)
 
 
 me_router = APIRouter(prefix="/api", tags=["me"])
+
+
+class PrefsIn(BaseModel):
+    locale: str | None = None
+    notify_email: bool | None = None
+
+
+@me_router.patch("/me", response_model=MeOut, dependencies=[Depends(csrf)])
+async def prefs(body: PrefsIn, actor: UserActor = Depends(current_user), session: AsyncSession = Depends(get_session)):
+    from ..i18n import LANGUAGES
+
+    user = await session.get(User, actor.user_id)
+    if body.locale is not None:
+        user.locale = body.locale if body.locale in LANGUAGES else ""
+    if body.notify_email is not None:
+        user.notify_email = body.notify_email
+    await session.commit()
+    return await me_out(session, user)
 
 
 @me_router.get("/me", response_model=MeOut)

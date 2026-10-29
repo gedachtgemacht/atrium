@@ -95,6 +95,8 @@ class Organization(Base):
     llm_provider: Mapped[str | None] = mapped_column(String(40), nullable=True)
     # Floor plans: [{"id": "main", "name": "Main office", "columns": 2}]. Rooms point to a floor id.
     floors: Mapped[list] = mapped_column(JSONB, default=lambda: [{"id": "main", "name": "Office", "columns": 2}])
+    # Default language for the UI, agent output, customer drafts and emails: en | de
+    language: Mapped[str] = mapped_column(String(8), default="en")
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
 
 
@@ -110,6 +112,10 @@ class User(Base):
     role_label: Mapped[str] = mapped_column(String(100), default="")
     is_admin: Mapped[bool] = mapped_column(default=False)
     is_active: Mapped[bool] = mapped_column(default=True)
+    # UI language (en, de); empty = the organization's language
+    locale: Mapped[str] = mapped_column(String(8), default="")
+    # Email when offline: mentions, customer messages, finished agent work
+    notify_email: Mapped[bool] = mapped_column(default=True)
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
 
 
@@ -174,6 +180,11 @@ class Guest(Base):
     expires_at: Mapped[datetime]
     revoked_at: Mapped[datetime | None] = mapped_column(nullable=True)
     invited_by_id: Mapped[uuid.UUID | None] = fk("user_account.id", nullable=True, ondelete="SET NULL", index=False)
+    # Optional: only if the guest wants emails about replies.
+    email: Mapped[str | None] = mapped_column(String(320), nullable=True)
+    notify: Mapped[bool] = mapped_column(default=False)
+    unsubscribe_hash: Mapped[str | None] = mapped_column(String(64), nullable=True, unique=True)
+    locale: Mapped[str] = mapped_column(String(8), default="")
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
 
 

@@ -20,7 +20,7 @@ def author_of(m: Message, partner_name: str = "") -> AuthorOut:
         company = g.company or partner_name
         return AuthorOut(
             kind="guest", id=g.id, name=g.name or "Guest", initials=initials(g.name or "G"),
-            label=f"Guest from {company}" if company else "Guest",
+            label=company,
         )
     if m.author_agent is not None:
         a = m.author_agent

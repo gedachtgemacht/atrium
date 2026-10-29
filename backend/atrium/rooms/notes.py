@@ -175,5 +175,8 @@ async def summarize(state, s: Session, transcript: str, speakers: list[str] | No
             text = ""
         if not text:
             return
-        await post_message(state, session, actor, channel, f"Notes from {s.room_name}, switched on by {s.started_by}\n\n{text}")
+        from ..i18n import t
+
+        header = t(org.language, "notes.header", room=s.room_name, who=s.started_by)
+        await post_message(state, session, actor, channel, f"{header}\n\n{text}")
         await _finish(session, run, "done")

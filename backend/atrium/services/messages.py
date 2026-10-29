@@ -46,6 +46,7 @@ async def post_message(
     *,
     attachment_ids: list[uuid.UUID] | None = None,
     draft_ids: list[uuid.UUID] | None = None,
+    started_by: uuid.UUID | None = None,
 ) -> Message:
     policy.assert_can_post(actor, channel)
     body = (body or "").strip()
@@ -78,6 +79,9 @@ async def post_message(
     await session.commit()
 
     await publish_message(state, session, channel, msg)
+    if state.notifier is not None:
+        loaded = await policy.get_message(session, SystemActor(channel.org_id), msg.id)
+        await state.notifier.on_message(session, channel, loaded, started_by=started_by)
     for draft in drafts:
         await _after_draft_sent(state, session, actor, channel, draft)
     if isinstance(actor, UserActor) and channel.kind != ChannelKind.shared:
@@ -235,6 +239,9 @@ async def _send_draft(state, session, actor, channel: Channel, msg: Message, dra
     draft.sent_at = utcnow()
     work = await session.get(WorkResult, draft.work_result_id) if draft.work_result_id else None
     closed = []
+    from ..i18n import t as tr
+
+    language = (await session.get(Organization, actor.org_id)).language
     if work is not None:
         work.status = WorkStatus.sent
         work.sent_at = draft.sent_at
@@ -242,7 +249,7 @@ async def _send_draft(state, session, actor, channel: Channel, msg: Message, dra
             if e.status == MemoryStatus.active and e.kind in (MemoryKind.open, MemoryKind.committed):
                 e.status = MemoryStatus.done
                 e.done_at = draft.sent_at
-                e.done_note = f"{'Answered' if e.kind == MemoryKind.open else 'Done'}, sent by {actor.name}"
+                e.done_note = tr(language, "mem.answered_by" if e.kind == MemoryKind.open else "mem.done_by", name=actor.name)
                 e.updated_by_id = actor.user_id
                 closed.append(str(e.id))
     audit(session, actor.org_id, actor, "draft.sent", subject_id=draft.id, message_id=msg.id,

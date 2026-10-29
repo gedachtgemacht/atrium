@@ -38,6 +38,7 @@ async def user_socket(ws: WebSocket):
     conn = Connection(ws=ws, actor=actor)
     first = actor.user_id not in state.hub.users
     state.hub.add(conn)
+    state.notifier.online(actor.user_id)
     presence = state.presence
     await conn.send(presence.snapshot(state.hub.online_user_ids()))
     if first:
@@ -167,6 +168,8 @@ async def guest_socket(ws: WebSocket):
     await ws.accept()
     conn = Connection(ws=ws, actor=guest)
     state.hub.add(conn)
+    if not guest.read_only:
+        state.notifier.guest_online(guest.guest_id)
     try:
         while True:
             msg = await ws.receive()

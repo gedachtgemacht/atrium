@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { list, t } from '../lib/i18n.svelte'
   import Avatar from '../lib/Avatar.svelte'
   import { firstName } from '../lib/format'
   import { icons } from '../lib/icons'
@@ -8,6 +9,7 @@
   import { voice } from './voice.svelte'
 
   let note = $state('')
+  let quietHint = $state(false)
   let chosen = $state<string | null>(readFloor())
 
   const me = $derived(store.me?.id ?? '')
@@ -45,41 +47,39 @@
   }
 
   function names(ids: string[]) {
-    const n = ids.map((id) => (id === me ? 'you' : firstName(store.people[id]?.name ?? 'Someone')))
-    if (n.length <= 1) return n.join('')
-    return `${n.slice(0, -1).join(', ')} and ${n[n.length - 1]}`
+    return list(ids.map((id) => (id === me ? t('common.you') : firstName(store.people[id]?.name ?? t('common.someone')))))
   }
 
   function meta(room: Room) {
     if (room.kind === 'hallway') {
-      if (!mine) return 'You are here'
-      return hallwayPeople.length ? 'Online, in no room' : 'Empty'
+      if (!mine) return t('plan.you_are_here')
+      return hallwayPeople.length ? t('plan.hallway_online') : t('plan.empty')
     }
     const people = live(room)?.people ?? []
     if (!people.length) {
-      if (room.kind === 'quiet') return 'Empty, for focused work'
-      if (!room.can_enter) return `For #${room.channel_name}`
-      return 'Empty'
+      if (room.kind === 'quiet') return t('plan.quiet_empty')
+      if (!room.can_enter) return t('plan.for_channel', { channel: room.channel_name })
+      return t('plan.empty')
     }
-    if (room.kind === 'quiet') return `${names(people.map((p) => p.user_id))} working with focus`
+    if (room.kind === 'quiet') return t('plan.focus', { names: names(people.map((p) => p.user_id)), n: people.length, me: people.some((p) => p.user_id === me) })
     return names(people.map((p) => p.user_id))
   }
 
   function enter(room: Room) {
     note = ''
+    quietHint = false
     if (room.kind === 'hallway') {
       if (mine) leave()
       return
     }
     if (room.kind === 'quiet') {
       const there = (live(room)?.people ?? []).filter((p) => p.user_id !== me).map((p) => p.user_id)
-      note = there.length
-        ? `${names(there)} ${there.length === 1 ? 'is' : 'are'} working with focus. Better send a message, they'll see it when they come out.`
-        : 'The quiet room is for focused work. Nobody can talk to you in there.'
+      note = there.length ? t('plan.quiet_busy', { names: names(there), n: there.length }) : t('plan.quiet_free')
+      quietHint = true
       return
     }
     if (!room.can_enter) {
-      note = `Only members of #${room.channel_name} can go in.`
+      note = t('plan.locked', { channel: room.channel_name })
       return
     }
     if (mine?.id === room.id) return
@@ -119,7 +119,7 @@
 </script>
 
 {#if store.floors.length > 1}
-  <div class="floors" role="group" aria-label="Floors">
+  <div class="floors" role="group" aria-label={t('plan.floors')}>
     {#each store.floors as f (f.id)}
       <button aria-pressed={f.id === floorId} onclick={() => pickFloor(f.id)}>
         {f.name}{#if myRoomConfig?.floor_id === f.id && f.id !== floorId} ·{/if}
@@ -136,17 +136,17 @@
       <button class="room" class:tall={r.col_span > 1} class:quiet={r.kind === 'quiet'} class:locked={!r.can_enter && r.kind === 'normal'}
         class:lit={lit || (r.kind === 'hallway' && hallwayPeople.length > 0)} class:here={mine?.id === r.id || (r.kind === 'hallway' && !mine)}
         {style} onclick={() => enter(r)}
-        aria-label={`${r.name}. ${meta(r)}${!r.can_enter && r.kind === 'normal' ? `. Only for members of #${r.channel_name}` : ''}`}>
+        aria-label={`${r.name}. ${meta(r)}${!r.can_enter && r.kind === 'normal' ? `. ${t('plan.locked_label', { channel: r.channel_name })}` : ''}`}>
         <span class="room-name">{#if !r.can_enter && r.kind === 'normal'}{@html icons.lock(11)}{/if}{r.name}</span>
         <span class="room-meta">{meta(r)}</span>
         {#if st?.notes_by_id}
-          <span class="room-notes">{@html icons.pen()} Notes on, by {firstName(st.notes_by_name)}</span>
+          <span class="room-notes">{@html icons.pen()} {t('plan.notes_by', { name: firstName(st.notes_by_name) })}</span>
         {/if}
         <span class="people">
           {#if r.kind === 'hallway'}
             {#each hallwayPeople as id (id)}
               {@const person = store.people[id]}
-              <Avatar size="s" initials={person?.initials} tone={person?.tone} me={id === me} title={id === me ? `You, ${person?.name}` : person?.name} />
+              <Avatar size="s" initials={person?.initials} tone={person?.tone} me={id === me} title={id === me ? t('plan.you_named', { name: person?.name }) : person?.name} />
             {/each}
           {:else}
             {#each st?.people ?? [] as p (p.user_id)}
@@ -154,7 +154,7 @@
               <Avatar size="s" initials={person?.initials} tone={person?.tone} me={p.user_id === me} muted={p.muted && r.kind !== 'quiet'}
                 talking={voice.speaking.includes(p.user_id)} title={person?.name} arrive={p.user_id === me} />
             {/each}
-            {#if st?.notes_by_id}<Avatar kind="agent" size="s" initials="N" title="Notes agent, taking notes" />{/if}
+            {#if st?.notes_by_id}<Avatar kind="agent" size="s" initials="N" title={t('plan.notes_agent')} />{/if}
           {/if}
         </span>
         {#if r.kind !== 'quiet' && r.row + r.row_span < lastRow}<span class="door" style={r.col_span > 1 ? 'left:46%' : r.col > 0 ? 'right:18px' : 'left:18px'}></span>{/if}
@@ -165,36 +165,36 @@
 
 <p class="plan-note" aria-live="polite">
   {#if hallway && hallway.floor_id !== floorId && hallwayPeople.length}
-    {hallwayPeople.length} online in the hallway on {store.floors.find((f) => f.id === hallway.floor_id)?.name}.
+    {t('plan.hallway_elsewhere', { n: hallwayPeople.length, floor: store.floors.find((f) => f.id === hallway.floor_id)?.name })}
   {/if}
   {note}
-  {#if note && note.includes('focused') && store.rooms.some((r) => r.kind === 'quiet') && myRoomConfig?.kind !== 'quiet'}
-    <button class="link-btn" onclick={goQuiet}>Go quiet yourself</button>
+  {#if note && quietHint && myRoomConfig?.kind !== 'quiet'}
+    <button class="link-btn" onclick={goQuiet}>{t('plan.go_quiet')}</button>
   {/if}
 </p>
 
 {#if mine && myRoomConfig}
   {@const others = mine.people.map((p) => p.user_id).filter((id) => id !== me)}
   <div class="livebar" aria-live="polite">
-    <strong>You're in {myRoomConfig.name}</strong>
-    <p>{others.length ? `${names(others)} ${others.length === 1 ? 'is' : 'are'} here.` : 'Nobody else is here yet.'}</p>
+    <strong>{t('live.in', { room: myRoomConfig.name })}</strong>
+    <p>{t('live.with', { names: names(others), n: others.length })}</p>
     {#if myRoomConfig.kind === 'normal'}
       {#if notesHere}
-        <p class="notes-line">{@html icons.pen()}<span>Notes are running, turned on by {mine.notes_by_id === me ? 'you' : firstName(mine.notes_by_name)}. Everyone in the room sees this.</span></p>
+        <p class="notes-line">{@html icons.pen()}<span>{mine.notes_by_id === me ? t('live.notes_on_me') : t('live.notes_on', { name: firstName(mine.notes_by_name) })}</span></p>
       {:else if myRoomConfig.channel_id}
-        <p class="notes-line off"><span>No notes. Nothing is recorded here.</span></p>
+        <p class="notes-line off"><span>{t('live.notes_off')}</span></p>
       {:else}
-        <p class="notes-line off"><span>This room has no notes. Nothing is recorded here.</span></p>
+        <p class="notes-line off"><span>{t('live.no_notes_room')}</span></p>
       {/if}
       <div class="row">
-        <button class="btn small" onclick={toggleMute}>{voice.muted ? 'Unmute' : 'Mute'}</button>
-        {#if myRoomConfig.channel_id}<button class="btn small" onclick={toggleNotes}>{notesHere ? 'Notes off' : 'Notes on'}</button>{/if}
-        <button class="btn small" onclick={leave}>Leave room</button>
+        <button class="btn small" onclick={toggleMute}>{voice.muted ? t('live.unmute') : t('live.mute')}</button>
+        {#if myRoomConfig.channel_id}<button class="btn small" onclick={toggleNotes}>{notesHere ? t('live.notes_off_btn') : t('live.notes_on_btn')}</button>{/if}
+        <button class="btn small" onclick={leave}>{t('live.leave')}</button>
       </div>
-      <p class="voice">{voice.error || (voice.connected ? 'Voice connected.' : 'Voice is off on this server.')}</p>
+      <p class="voice">{voice.error ? t(voice.error) : voice.connected ? t('live.voice_on') : t('live.voice_off')}</p>
     {:else}
-      <p class="notes-line off"><span>Quiet. No voice, no notes.</span></p>
-      <div class="row"><button class="btn small" onclick={leave}>Leave room</button></div>
+      <p class="notes-line off"><span>{t('live.quiet')}</span></p>
+      <div class="row"><button class="btn small" onclick={leave}>{t('live.leave')}</button></div>
     {/if}
   </div>
 {/if}

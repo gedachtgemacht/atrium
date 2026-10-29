@@ -20,7 +20,8 @@ These rules are enforced in the backend, never only in the UI.
 - The LLM client takes context only as a `BuiltContext` from `backend/atrium/llm/context.py` (`ContextBuilder`). The builder accepts only messages from internal channels inside the agent's scope and raises `WallViolation` otherwise.
 - Provider specific code (Anthropic, OpenAI compatible) lives only in `backend/atrium/llm/providers/`.
 - Room presence lives only in memory (`backend/atrium/rooms/presence.py`) and travels only over the WebSocket. No table, no log line, no HTTP route for joining.
-- The guest frontend (`frontend/src/guest/`) is a separate bundle and must not import anything from `frontend/src/app/`.
+- The guest frontend (`frontend/src/guest/`) is a separate bundle and must not import anything from `frontend/src/app/`. `npm run build && npm run check:guest` checks that no internal words end up in it.
+- Notification emails never contain message text, only who wrote where and a link.
 
 ### Mandatory wall tests (`backend/tests/wall/`)
 
@@ -40,7 +41,7 @@ These tests are never weakened, skipped, marked `xfail` or rewritten to get some
 
 ## Conventions
 
-- UI text in English: short, casual, addressing the reader as "you", no dashes.
+- UI text lives in dictionaries: `frontend/src/app/i18n*.ts` (internal), `frontend/src/guest/i18n.ts` (guest), `backend/atrium/i18n.py` (server: emails, tool output, drafts). Every key in English and German. Tone: short, casual, "you"/"du", no dashes.
 - Shapes: circle = person, dashed circle = guest, square = agent.
 - No tracking, no analytics, no external scripts or CDNs. Fonts are bundled.
 - Keep dependencies few; justify each new one in `docs/PLAN.md`.

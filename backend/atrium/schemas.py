@@ -90,6 +90,7 @@ class GuestInfoOut(Out):
     revoked_at: datetime | None
     created_at: datetime
     joined: bool
+    notify: bool = False
 
 
 class ChannelOut(Out):
@@ -124,6 +125,10 @@ class MeOut(Out):
     is_admin: bool
     org_name: str
     server_location: str
+    locale: str
+    language: str  # effective UI language: own choice or the company's
+    org_language: str
+    notify_email: bool
 
 
 class DraftOut(Out):
@@ -160,9 +165,11 @@ class AgentOut(Out):
     name: str
     initial: str
     description: str
-    status: str = ""
+    role: str
     busy: bool = False
-    waiting: int = 0
+    drafts_waiting: int = 0
+    results_waiting: int = 0
+    notes_rooms: list[str] = []
 
 
 class AskSource(Out):

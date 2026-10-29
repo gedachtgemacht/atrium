@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { list, t } from '../lib/i18n.svelte'
   import { onMount } from 'svelte'
   import { api } from '../lib/api'
   import { icons } from '../lib/icons'
@@ -17,10 +18,10 @@
 
 <svelte:window onkeydown={(e) => e.key === 'Escape' && onclose()} />
 
-<div class="preview" role="dialog" aria-label="Guest preview">
+<div class="preview" role="dialog" aria-label={t('preview.label')}>
   <div class="guest-banner">
-    <span>{@html icons.eye(16)}<span><strong>Preview:</strong> This is how {guest.name} sees this channel.</span></span>
-    <button class="btn small" bind:this={back} onclick={onclose}>Back to your view</button>
+    <span>{@html icons.eye(16)}<span><strong>{t('preview.title')}</strong> {t('preview.banner', { name: guest.name })}</span></span>
+    <button class="btn small" bind:this={back} onclick={onclose}>{t('preview.back')}</button>
   </div>
-  {#if src}<iframe title="Guest view of {guest.name}" {src}></iframe>{/if}
+  {#if src}<iframe title={t('preview.frame', { name: guest.name })} {src}></iframe>{/if}
 </div>

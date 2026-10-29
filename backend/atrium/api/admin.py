@@ -57,6 +57,7 @@ async def audit_log(action: str | None = None, before: datetime | None = None, l
 
 class SettingsOut(BaseModel):
     name: str
+    language: str
     server_location: str
     interest_rate_pct: Decimal
     retention: dict
@@ -67,6 +68,7 @@ class SettingsOut(BaseModel):
 
 class SettingsIn(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=200)
+    language: str | None = None
     server_location: str | None = Field(default=None, max_length=100)
     interest_rate_pct: Decimal | None = Field(default=None, ge=0, le=100)
     retention: dict | None = None
@@ -77,7 +79,7 @@ RETENTION_KEYS = ("shared_days", "internal_days", "audit_days", "guest_days_afte
 
 
 def settings_out(org: Organization, state: AppState) -> SettingsOut:
-    return SettingsOut(name=org.name, server_location=org.server_location, interest_rate_pct=org.interest_rate_pct,
+    return SettingsOut(name=org.name, language=org.language, server_location=org.server_location, interest_rate_pct=org.interest_rate_pct,
                        retention={k: (org.retention or {}).get(k) for k in RETENTION_KEYS}, llm_provider=org.llm_provider,
                        llm_providers=available_providers(state.settings), default_llm_provider=state.settings.llm_provider)
 
@@ -109,11 +111,21 @@ async def patch_settings(body: SettingsIn, admin: UserActor = Depends(current_ad
         if body.llm_provider and body.llm_provider not in available_providers(state.settings):
             raise HTTPException(400, "This provider isn't configured on the server")
         org.llm_provider = body.llm_provider or None
+    if "language" in changes and body.language:
+        from ..i18n import LANGUAGES
+
+        if body.language not in LANGUAGES:
+            raise HTTPException(400, "Unknown language")
+        org.language = body.language
     for k in ("name", "server_location", "interest_rate_pct"):
         if k in changes and changes[k] is not None:
             setattr(org, k, changes[k])
     audit(session, org.id, admin, "settings.changed", fields=list(changes))
     await session.commit()
+    if "language" in changes:
+        from ..agents.runner import sync_agents
+
+        await sync_agents(state, session)
     return settings_out(org, state)
 
 
@@ -247,7 +259,8 @@ async def export_guest(guest_id: uuid.UUID, admin: UserActor = Depends(current_a
     audit(session, admin.org_id, admin, "guest.exported", subject_id=g.id)
     await session.commit()
     return {
-        "guest": {"id": str(g.id), "name": g.name, "company": g.company, "created_at": g.created_at.isoformat(),
+        "guest": {"id": str(g.id), "name": g.name, "company": g.company, "email": g.email, "email_notifications": g.notify,
+                  "language": g.locale, "created_at": g.created_at.isoformat(),
                   "expires_at": g.expires_at.isoformat(), "revoked_at": g.revoked_at.isoformat() if g.revoked_at else None},
         "messages": [
             {"id": str(m.id), "created_at": m.created_at.isoformat(), "body": m.body,

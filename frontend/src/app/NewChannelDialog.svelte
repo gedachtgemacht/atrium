@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { list, t } from '../lib/i18n.svelte'
   import { onMount } from 'svelte'
   import { api } from '../lib/api'
   import type { Channel } from '../lib/types'
@@ -35,17 +36,17 @@
 
 <dialog bind:this={dlg} onclose={onclose} aria-labelledby="ncTitle">
   <form class="dlg" onsubmit={create}>
-    <h2 id="ncTitle">New channel</h2>
+    <h2 id="ncTitle">{t('nc.title')}</h2>
     <fieldset class="member-pick" style="border:0;padding:0;margin:0">
-      <legend class="sr">Kind</legend>
-      <label><input type="radio" bind:group={kind} value="internal" /> Internal</label>
-      <label><input type="radio" bind:group={kind} value="shared" /> With a partner</label>
+      <legend class="sr">{t('nc.kind')}</legend>
+      <label><input type="radio" bind:group={kind} value="internal" /> {t('nc.internal')}</label>
+      <label><input type="radio" bind:group={kind} value="shared" /> {t('nc.shared')}</label>
     </fieldset>
-    {#if kind === 'shared'}<p>A shared channel always comes with its own backroom. Guests join by link and only see the channel itself.</p>{/if}
-    <label class="field">Name<input bind:value={name} required maxlength="200" placeholder={kind === 'shared' ? 'Hollmann Bau' : 'dispatch'} /></label>
-    {#if kind === 'shared'}<label class="field">Partner company<input bind:value={partner} maxlength="200" /></label>{/if}
-    <label class="field">Description (optional)<input bind:value={description} maxlength="300" /></label>
-    <div class="field">Members
+    {#if kind === 'shared'}<p>{t('nc.shared_hint')}</p>{/if}
+    <label class="field">{t('nc.name')}<input bind:value={name} required maxlength="200" placeholder={kind === 'shared' ? 'Hollmann Bau' : 'dispatch'} /></label>
+    {#if kind === 'shared'}<label class="field">{t('nc.partner')}<input bind:value={partner} maxlength="200" /></label>{/if}
+    <label class="field">{t('nc.description')}<input bind:value={description} maxlength="300" /></label>
+    <div class="field">{t('nc.members')}
       <div class="member-pick">
         {#each people as p (p.id)}
           <label><input type="checkbox" bind:group={members} value={p.id} />{p.name}</label>
@@ -53,6 +54,6 @@
       </div>
     </div>
     {#if error}<p class="error">{error}</p>{/if}
-    <div class="row"><button type="button" class="btn" onclick={() => dlg?.close()}>Cancel</button><button class="btn primary">Create</button></div>
+    <div class="row"><button type="button" class="btn" onclick={() => dlg?.close()}>{t('common.cancel')}</button><button class="btn primary">{t('nc.create')}</button></div>
   </form>
 </dialog>

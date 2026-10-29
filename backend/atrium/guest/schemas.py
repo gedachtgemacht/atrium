@@ -43,7 +43,8 @@ class GuestMessage(GuestModel):
 class GuestChannel(GuestModel):
     company_name: str
     partner_name: str
-    notice: str
+    server_location: str
+    language: str  # the company's language, used when the guest picked none
     members: list[GuestAuthor]
 
 
@@ -52,12 +53,16 @@ class GuestMe(GuestModel):
     name: str
     company: str
     preview: bool
+    email: str | None = None
+    notify: bool = False
+    locale: str = ""
 
 
 class GuestJoinInfo(GuestModel):
     company_name: str
     needs_name: bool
     suggested_name: str
+    language: str
 
 
 class GuestEvent(GuestModel):

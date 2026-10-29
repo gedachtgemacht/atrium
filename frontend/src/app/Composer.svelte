@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { list, t } from '../lib/i18n.svelte'
   import { api } from '../lib/api'
   import { size } from '../lib/format'
   import { icons } from '../lib/icons'
@@ -115,7 +116,7 @@
       <div class="attach">
         {@html icons.doc()}
         <span class="grow"><strong>{f.filename}</strong><small>{f.summary || size(f.size)}</small></span>
-        <button type="button" class="x" aria-label="Remove attachment" onclick={() => removeDraftFile(d, f)}>{@html icons.x()}</button>
+        <button type="button" class="x" aria-label={t('composer.remove_attachment')} onclick={() => removeDraftFile(d, f)}>{@html icons.x()}</button>
       </div>
     {/each}
   {/each}
@@ -123,21 +124,21 @@
     <div class="attach plain">
       {@html icons.doc()}
       <span class="grow"><strong>{f.filename}</strong><small>{size(f.size)}</small></span>
-      <button type="button" class="x" aria-label="Remove file" onclick={() => uploads.splice(i, 1)}>{@html icons.x()}</button>
+      <button type="button" class="x" aria-label={t('composer.remove_file')} onclick={() => uploads.splice(i, 1)}>{@html icons.x()}</button>
     </div>
   {/each}
   <div class="box" class:flash={flashing}>
-    <label class="sr" for="in-{channel.id}">{backroom ? 'Message to the backroom' : 'Message'}</label>
+    <label class="sr" for="in-{channel.id}">{backroom ? t('composer.backroom_label') : t('composer.message')}</label>
     <textarea id="in-{channel.id}" rows="1" {placeholder} bind:value={text} bind:this={input} oninput={grow} onkeydown={keydown}></textarea>
     <input type="file" hidden multiple bind:this={fileInput} onchange={pick} />
-    <button type="button" class="clip" aria-label="Attach a file" onclick={() => fileInput?.click()}>{@html icons.clip()}</button>
-    <button class="btn primary" type="submit" disabled={sending}>Send</button>
+    <button type="button" class="clip" aria-label={t('composer.attach')} onclick={() => fileInput?.click()}>{@html icons.clip()}</button>
+    <button class="btn primary" type="submit" disabled={sending}>{t('composer.send')}</button>
   </div>
   {#if error}<p class="composer-error" role="alert">{error}</p>{/if}
   <p class="composer-hint">
     {hint}
     {#each drafts as d (d.id)}
-      <span> Draft from the {d.agent_name.toLowerCase() || 'agent'}. <button type="button" class="link-btn" onclick={() => discard(d)}>Discard draft</button></span>
+      <span> {t('composer.draft_from', { agent: d.agent_name || 'Agent' })} <button type="button" class="link-btn" onclick={() => discard(d)}>{t('composer.discard')}</button></span>
     {/each}
   </p>
 </form>

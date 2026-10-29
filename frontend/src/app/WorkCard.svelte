@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { list, t } from '../lib/i18n.svelte'
   import { api } from '../lib/api'
   import { eur, firstName, time } from '../lib/format'
   import { icons } from '../lib/icons'
@@ -16,10 +17,10 @@
   const total = $derived(editing ? lines.reduce((s, l, i) => s + l.loads * (Number(rates[i]) || 0), 0) : work.data.total_per_month)
   const loads = $derived(lines.reduce((s, l) => s + l.loads, 0))
   const mineStaged = $derived(work.staged_by_id === me)
-  const who = $derived(mineStaged ? 'you' : firstName(work.staged_by_name))
+  const who = $derived(firstName(work.staged_by_name))
 
   const stateLabel = $derived(
-    work.status === 'sent' ? `Sent ${work.sent_at ? time(work.sent_at) : ''}` : work.status === 'with_user' ? `With ${mineStaged ? 'you' : firstName(work.staged_by_name)}` : work.kind === 'quote' ? 'Draft, internal only' : 'Internal only',
+    work.status === 'sent' ? t('work.sent', { time: work.sent_at ? time(work.sent_at) : '' }) : work.status === 'with_user' ? (mineStaged ? t('work.with_me') : t('work.with', { name: who })) : work.kind === 'quote' ? t('work.draft_internal') : t('work.internal'),
   )
 
   async function toggleEdit() {
@@ -63,19 +64,19 @@
 
   {#if work.kind === 'quote'}
     <table>
-      <thead><tr><th>Route</th><th class="num">Loads</th><th class="num">Price per load</th></tr></thead>
+      <thead><tr><th>{t('work.route')}</th><th class="num">{t('work.loads')}</th><th class="num">{t('work.price')}</th></tr></thead>
       <tbody>
         {#each lines as l, i}
           <tr>
-            <td>{l.origin} → {l.destination}{#if l.new}<span class="new">new</span>{/if}</td>
+            <td>{l.origin} → {l.destination}{#if l.new}<span class="new">{t('work.new')}</span>{/if}</td>
             <td class="num">{l.loads}</td>
             <td class="num rate">
-              {#if editing}<input type="number" min="0" step="1" aria-label="Price per load {l.destination}" bind:value={rates[i]} />{:else}{eur(l.rate)}{/if}
+              {#if editing}<input type="number" min="0" step="1" aria-label={t('work.price_for', { place: l.destination })} bind:value={rates[i]} />{:else}{eur(l.rate)}{/if}
             </td>
           </tr>
         {/each}
       </tbody>
-      <tfoot><tr><td>Per month</td><td class="num">{loads}</td><td class="num">{eur(total)}</td></tr></tfoot>
+      <tfoot><tr><td>{t('work.per_month')}</td><td class="num">{loads}</td><td class="num">{eur(total)}</td></tr></tfoot>
     </table>
   {:else if work.kind === 'payment_terms'}
     <dl class="calc">
@@ -87,7 +88,7 @@
     <div class="note">{@html icons.info()}<span>{work.data.note}</span></div>
   {/if}
   {#if work.sources.length}
-    <div class="sources" aria-label="Where the numbers come from">{#each work.sources as s}<span>{s}</span>{/each}</div>
+    <div class="sources" aria-label={t('work.sources')}>{#each work.sources as s}<span>{s}</span>{/each}</div>
   {/if}
   {#if why && work.data.reasoning?.length}
     <div class="reasoning" id="why-{work.id}">{#each work.data.reasoning as r}<p>{r}</p>{/each}</div>
@@ -98,19 +99,19 @@
 
   {#if work.status === 'internal'}
     <div class="actions">
-      <button class="btn primary" onclick={stage} disabled={busy}>{work.kind === 'quote' ? 'Move to customer channel' : 'Draft a reply in the customer channel'}</button>
-      {#if work.kind === 'quote'}<button class="btn" onclick={toggleEdit} disabled={busy}>{editing ? 'Done' : 'Change prices'}</button>{/if}
+      <button class="btn primary" onclick={stage} disabled={busy}>{work.kind === 'quote' ? t('work.stage_quote') : t('work.stage_reply')}</button>
+      {#if work.kind === 'quote'}<button class="btn" onclick={toggleEdit} disabled={busy}>{editing ? t('common.done') : t('work.edit_prices')}</button>{/if}
       {#if work.data.reasoning?.length}
-        <button class="btn" aria-expanded={why} aria-controls="why-{work.id}" onclick={() => (why = !why)}>{why ? 'Hide reasoning' : 'Reasoning'}</button>
+        <button class="btn" aria-expanded={why} aria-controls="why-{work.id}" onclick={() => (why = !why)}>{why ? t('work.why_hide') : t('work.why')}</button>
       {/if}
     </div>
   {:else if work.status === 'with_user'}
     <div class="sent-line">{@html icons.check()}<div>
-      {mineStaged ? "It's in your composer in the customer channel now." : `It's in ${who}'s composer in the customer channel.`}<br>
-      <span>It only goes out when {mineStaged ? 'you press' : `${who} presses`} Send there.</span></div></div>
+      {mineStaged ? t('work.mine_staged') : t('work.other_staged', { name: who })}<br>
+      <span>{mineStaged ? t('work.mine_send') : t('work.other_send', { name: who })}</span></div></div>
   {:else}
     <div class="sent-line done">{@html icons.check()}<div>
-      Sent to the customer by {who}{work.sent_at ? `, ${time(work.sent_at)}` : ''}.<br>
-      <span>Went out as {mineStaged ? 'your' : `${who}'s`} message, not as {agent}.</span></div></div>
+      {mineStaged ? t('work.sent_by_me', { time: work.sent_at ? `, ${time(work.sent_at)}` : '' }) : t('work.sent_by', { name: who, time: work.sent_at ? `, ${time(work.sent_at)}` : '' })}<br>
+      <span>{mineStaged ? t('work.sent_as_mine', { agent }) : t('work.sent_as_other', { name: who, agent })}</span></div></div>
   {/if}
 </div>

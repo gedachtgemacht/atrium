@@ -145,3 +145,25 @@ test('an admin adds a site with a room, and colleagues see it right away', async
   await lena.getByRole('button', { name: /^Depot office/ }).click()
   await expect(lena.getByText('Only members of #warehouse can go in.')).toBeVisible()
 })
+
+test('German: the company language switches the UI, guests follow their browser', async ({ browser }) => {
+  const lena = await signIn(browser, 'lena')
+  const h = { 'X-Requested-With': 'atrium' }
+  await lena.request.patch('/api/admin/settings', { data: { language: 'de' }, headers: h })
+  try {
+    await lena.reload()
+    await expect(lena.getByRole('heading', { name: 'Räume' })).toBeVisible()
+    await expect(lena.locator('.backroom').getByRole('heading', { name: 'Hinterzimmer' })).toBeVisible()
+    await expect(lena.getByRole('button', { name: 'Ins Hinterzimmer holen' }).first()).toBeVisible()
+    await expect(lena.getByText('Hier schreiben nur Menschen')).toBeVisible()
+
+    const de = await (await browser.newContext({ locale: 'de-DE' })).newPage()
+    await de.goto(seed().links['Jan Petersen'])
+    await expect(de.getByText('Hier schreiben nur Menschen von Kessler Logistik.', { exact: false })).toBeVisible()
+    const en = await (await browser.newContext({ locale: 'en-GB' })).newPage()
+    await en.goto(seed().links['Jan Petersen'])
+    await expect(en.getByText('Only people from Kessler Logistik write here.', { exact: false })).toBeVisible()
+  } finally {
+    await lena.request.patch('/api/admin/settings', { data: { language: 'en' }, headers: h })
+  }
+})

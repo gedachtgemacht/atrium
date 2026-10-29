@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from '../lib/i18n.svelte'
   import { icons } from '../lib/icons'
   import Admin from './Admin.svelte'
   import Backroom from './Backroom.svelte'
@@ -19,17 +20,14 @@
 <svelte:window onkeydown={(e) => e.key === 'Escape' && closeDrawers()} />
 
 <header class="top">
-  <button class="icon-btn menu-btn" aria-label="Open rooms and channels" aria-expanded={store.railOpen}
+  <button class="icon-btn menu-btn" aria-label={t('shell.menu')} aria-expanded={store.railOpen}
     onclick={() => { store.backroomOpen = false; store.railOpen = !store.railOpen }}>{@html icons.menu()}</button>
   <a class="brand" href="#/">Atrium <small>{store.me?.org_name}</small></a>
   <SearchBox />
   <div class="trust">
-    {#if store.me?.server_location}
-      <span class="chip opt" title="Messages, files and the agents' work stay on your own server.">{@html icons.server()} Your server, {store.me.server_location}</span>
-    {:else}
-      <span class="chip opt" title="Messages, files and the agents' work stay on your own server.">{@html icons.server()} Your own server</span>
-    {/if}
-    {#if !store.connected}<span class="chip" role="status">Reconnecting</span>{/if}
+    <span class="chip opt" title={t('shell.trust_title')}>{@html icons.server()}
+      {store.me?.server_location ? t('shell.server_at', { place: store.me.server_location }) : t('shell.server')}</span>
+    {#if !store.connected}<span class="chip" role="status">{t('shell.reconnecting')}</span>{/if}
   </div>
 </header>
 
@@ -45,7 +43,7 @@
       {/if}
     {/key}
   {:else}
-    <main class="channel"><p class="empty-feed">Pick a channel on the left.</p></main>
+    <main class="channel"><p class="empty-feed">{t('shell.pick')}</p></main>
   {/if}
 </div>
 {#if store.railOpen || store.backroomOpen}

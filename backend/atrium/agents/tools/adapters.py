@@ -33,6 +33,7 @@ class DispatchAdapter(Protocol):
 class ContractTerms:
     customer: str
     contract: str
+    year: int
     payment_days: int
     subcontractor_markup_pct: float
     routes: list[dict]  # [{"origin", "destination", "loads_per_month"}]
@@ -73,7 +74,7 @@ class MockContracts:
         if "hollmann" not in customer.lower():
             return None
         return ContractTerms(
-            customer="Hollmann Bau GmbH", contract="Contract 2026", payment_days=30, subcontractor_markup_pct=8.0,
+            customer="Hollmann Bau GmbH", contract="Contract 2026", year=2026, payment_days=30, subcontractor_markup_pct=8.0,
             routes=[
                 {"origin": "Dortmund", "destination": "Hamm", "loads_per_month": 18},
                 {"origin": "Dortmund", "destination": "Münster", "loads_per_month": 14},

@@ -20,3 +20,4 @@ translations:
     name: "Frag das Hinterzimmer"
     description: "Antwortet aus Hinterzimmer und Gedächtnis, immer mit Quelle."
     permission: "Liest nur Hinterzimmer und ihr Gedächtnis."
+    initial: "H"

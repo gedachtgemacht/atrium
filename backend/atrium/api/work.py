@@ -226,7 +226,7 @@ async def search(q: str, actor: UserActor = Depends(current_user), session: Asyn
 @router.get("/agents", response_model=list[AgentOut])
 async def agents(actor: UserActor = Depends(current_user), session: AsyncSession = Depends(get_session),
                  state: AppState = Depends(get_state)):
-    from ..agents.config import agent_description, agent_name
+    from ..agents.config import agent_description, agent_initial, agent_name
     from ..models import Organization, User
 
     me = await session.get(User, actor.user_id)
@@ -251,7 +251,7 @@ async def agents(actor: UserActor = Depends(current_user), session: AsyncSession
                                                                WorkResult.channel_id.in_(readable))
         )).scalar_one()
         notes_rooms = state.presence.rooms_with_notes() if cfg.role == "notes" and state.presence is not None else []
-        out.append(AgentOut(id=aid, slug=cfg.slug, handle=cfg.handle, name=agent_name(cfg, lang), initial=cfg.initial,
+        out.append(AgentOut(id=aid, slug=cfg.slug, handle=cfg.handle, name=agent_name(cfg, lang), initial=agent_initial(cfg, lang),
                             description=agent_description(cfg, lang), role=cfg.role, busy=bool(busy),
                             drafts_waiting=waiting, results_waiting=fresh, notes_rooms=notes_rooms))
     return out

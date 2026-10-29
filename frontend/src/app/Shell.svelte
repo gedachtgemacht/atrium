@@ -47,6 +47,7 @@
   {/if}
 </div>
 {#if store.railOpen || store.backroomOpen}
-  <div class="scrim" role="presentation" onclick={closeDrawers}></div>
+  <!-- Only shown where the rail or the backroom actually is a drawer (see app.css). -->
+  <div class="scrim" class:for-rail={store.railOpen} class:for-back={store.backroomOpen} role="presentation" onclick={closeDrawers}></div>
 {/if}
 {#if store.toastText}<div class="toast" role="status">{store.toastText}</div>{/if}

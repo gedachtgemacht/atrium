@@ -18,3 +18,4 @@ translations:
     name: "Protokollagent"
     description: "Fasst ein Gespräch im Raum kurz zusammen, nur solange jemand im Raum die Notizen eingeschaltet hat."
     permission: "Hört nur zu, solange in einem Raum Notizen an sind. Schreibt die Zusammenfassung in den Kanal des Raums. Speichert kein Audio."
+    initial: "P"

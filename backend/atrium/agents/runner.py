@@ -25,17 +25,17 @@ async def sync_agents(state, session: AsyncSession) -> None:
     org = (await session.execute(select(Organization).limit(1))).scalar_one_or_none()
     if org is None:
         return
-    from .config import agent_name, agent_permission
+    from .config import agent_initial, agent_name, agent_permission
 
     rows = {a.slug: a for a in (await session.execute(select(Agent))).scalars()}
     for cfg in state.agents.values():
         row = rows.get(cfg.slug)
-        name = agent_name(cfg, org.language)
+        name, initial = agent_name(cfg, org.language), agent_initial(cfg, org.language)
         if row is None:
-            row = Agent(org_id=org.id, slug=cfg.slug, handle=cfg.handle, name=name, initial=cfg.initial)
+            row = Agent(org_id=org.id, slug=cfg.slug, handle=cfg.handle, name=name, initial=initial)
             session.add(row)
         else:
-            row.handle, row.name, row.initial, row.is_active = cfg.handle, name, cfg.initial, True
+            row.handle, row.name, row.initial, row.is_active = cfg.handle, name, initial, True
     for slug, row in rows.items():
         if slug not in state.agents:
             row.is_active = False

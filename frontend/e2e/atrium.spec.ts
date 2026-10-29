@@ -167,3 +167,15 @@ test('German: the company language switches the UI, guests follow their browser'
     await lena.request.patch('/api/admin/settings', { data: { language: 'en' }, headers: h })
   }
 })
+
+test('on a wide screen pulling a message leaves the page clickable', async ({ browser }) => {
+  const lena = await signIn(browser, 'lena')
+  const msg = lena.locator('.feed .msg', { hasText: 'Good morning' })
+  if (await msg.getByRole('button', { name: 'Pull into backroom' }).count()) {
+    await msg.getByRole('button', { name: 'Pull into backroom' }).click()
+    await lena.getByRole('button', { name: 'Pull in', exact: true }).click()
+  }
+  await expect(lena.locator('.scrim')).toBeHidden()
+  await lena.getByRole('tab', { name: 'Memory' }).click()
+  await expect(lena.getByRole('heading', { name: 'Ask the backroom' })).toBeVisible()
+})

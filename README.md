@@ -1,26 +1,63 @@
 # Atrium
 
-Self hosted team chat for companies, as an alternative to Teams and Slack, with one big difference: customers and partners join **shared channels** by link, and **AI agents work only in an internal backroom** next to them. No agent can read a customer channel or send anything to a customer. On top: rooms you drop into like on Discord, and a memory that keeps decisions, open questions and promises.
+**Team chat with your customers in it. AI agents work only in the backroom.**
 
-License: AGPL-3.0-or-later.
+Atrium is a self hosted chat for companies. Customers and partners join a shared channel by link, without an account. Next to every shared channel sits an internal backroom. Agents work there and nowhere else: they can't read the customer channel and can't send anything to a customer. A person pulls in what an agent should see, and a person sends what goes out.
+
+English · [Deutsch](README.de.md) · License: AGPL-3.0
+
+![Atrium: customer channel on the left, backroom with a quote from the agent on the right](docs/images/main.png)
 
 ## How it works
 
-- **Shared channel + backroom.** Every shared channel has exactly one backroom. Guests see the channel, never the backroom.
-- **Pull in.** A person pulls a single customer message into the backroom. That makes a copy and an audit entry. Agents only ever see that copy.
-- **Agents draft, people send.** Mention `@QuoteAgent` in the backroom. Its result is a card (lines, total, note, sources, reasoning). "Move to customer channel" puts text and PDF into *your* composer. It goes out only when you press Send, as your message.
-- **Memory.** Decisions, open questions and promises are extracted from the backroom, each with its source. People can edit or delete entries. Promises and questions close when the matching draft is sent. "Ask the backroom" answers only from backroom and memory, always with a source, and says so when it doesn't know.
-- **Notifications.** People with Atrium open get browser notifications for mentions (`@Tom`), customer messages and finished agent work; people who are offline get one collected email after a few minutes. Guests get an email about replies only if they leave an address. Emails say who wrote where, never what.
-- **English and German.** The company language (Admin → Settings) sets the UI, agent replies, customer drafts, the quote PDF and emails. Everyone can pick their own UI language; guests follow their browser.
-- **Rooms.** A floor plan with live presence and voice over LiveKit. Admins shape it to the company under Admin → Rooms: floors or sites, rooms on a grid, quiet rooms, the hallway, rooms only a department can enter, and which channel a room's notes go to. Presence is never stored or logged. Notes run only when someone in the room turns them on; everyone sees it; audio is transcribed locally with faster-whisper and never stored.
-- **The wall** is enforced in the backend and covered by tests that must never be weakened. See [CLAUDE.md](CLAUDE.md) and [docs/PLAN.md](docs/PLAN.md).
+1. **Sarah from Hollmann Bau writes in the shared channel.** She got a link from Lena and only typed her name.
+2. **Lena pulls that one message into the backroom.** The backroom gets a copy, the audit log gets an entry. The rest of the customer channel stays invisible to agents.
+3. **`@QuoteAgent` prices it.** Routes and volumes from the contract, prices from the ERP, free capacity from dispatch. The result is a card with lines, total, a note, the sources and the reasoning.
+4. **Lena moves it to the customer channel.** Text and PDF land in her composer. It goes out when she presses Send, as her message. Sarah never sees an agent.
+
+![Pulling a question into the backroom, the agent working out payment terms, Lena sending the reply, Sarah reading it](docs/images/flow.gif)
+
+## What else is in it
+
+<table>
+<tr>
+<td width="50%"><img src="docs/images/memory.png" alt="Memory with decisions, open questions and promises, and an answer from the backroom with sources"><br><b>Memory.</b> Decisions, open questions and promises from the backroom, each with its source. Sending the matching reply ticks them off. "Ask the backroom" answers with sources or says it doesn't know.</td>
+<td width="50%"><img src="docs/images/guest.png" alt="The guest's view of the channel"><br><b>The guest's view.</b> Guests get their own app and their own API: no backroom, no agents, no drafts, no hint that something was pulled in. "View as Sarah" shows exactly this.</td>
+</tr>
+<tr>
+<td><img src="docs/images/handover.png" alt="The quote as text and PDF in Lena's composer"><br><b>Agents draft, people send.</b> The draft sits in one person's composer. They can change it, remove the PDF, or throw it away.</td>
+<td><img src="docs/images/rooms-editor.png" alt="Admin page with the floor plan editor"><br><b>Rooms.</b> A floor plan you drop into to talk, over your own LiveKit server. Admins lay it out: floors or sites, quiet room, hallway, rooms for one team only. Who was in which room is never stored.</td>
+</tr>
+<tr>
+<td><img src="docs/images/main-dark.png" alt="Dark mode"><br><b>Light and dark</b>, English and German. The company language also sets agent replies, customer drafts, the PDF and emails.</td>
+<td><img src="docs/images/phone-channel.png" width="49%" alt="Phone: customer channel"> <img src="docs/images/phone-backroom.png" width="49%" alt="Phone: backroom"><br><b>On the phone</b> the rooms and the backroom become drawers.</td>
+</tr>
+</table>
+
+Also in it: room notes that only run when someone in the room turns them on (transcribed locally with faster-whisper, audio never stored), notifications by browser and email (emails say who wrote where, never what), an audit log of every pull, draft and LLM call, retention per channel type, guest data export and deletion.
+
+## The wall
+
+These rules hold in the backend, not just in the UI, and each one has a test that is never weakened:
+
+1. Agents can't read shared channels: not through the API, search, sockets, memory, "Ask the backroom" or LLM context.
+2. Only people write in shared channels. An agent gets 403.
+3. A customer message reaches the backroom only when a person pulls it in. That is logged.
+4. Agents only make drafts. A person sends them, as themselves.
+5. Guests see nothing internal. They have their own response schemas, not hidden fields.
+6. Rooms store no presence. Notes only run when someone turns them on, and everyone in the room sees it.
+7. Every LLM call is logged with agent, trigger, the message ids in its context, provider and time.
+
+The canary test puts `KANARIE-7f3a` into a customer channel, runs every agent path against a recording fake LLM and fails if the text shows up anywhere before a person pulls it in. Details in [CLAUDE.md](CLAUDE.md) and [docs/PLAN.md](docs/PLAN.md).
+
+Built with FastAPI, PostgreSQL, Svelte 5, LiveKit and faster-whisper. The language model is Anthropic's API or any OpenAI compatible endpoint you run yourself.
 
 ## Run it on a server
 
 Needs Docker with Compose (or Podman with podman-compose), a domain pointing to the server, and ports 80, 443, 7881/tcp and 50000–50100/udp open. Behind another proxy, set `HTTP_PORT`/`HTTPS_PORT` and `ATRIUM_PUBLIC_URL`.
 
 ```sh
-git clone <this repo> atrium && cd atrium
+git clone https://github.com/gedachtgemacht/atrium.git && cd atrium
 cp .env.example .env          # set ATRIUM_DOMAIN, POSTGRES_PASSWORD, the LLM key, the LiveKit secret
 docker compose -f deploy/docker-compose.yml --env-file .env up -d --build
 ```
@@ -28,7 +65,7 @@ docker compose -f deploy/docker-compose.yml --env-file .env up -d --build
 Create the first account (or load the demo data):
 
 ```sh
-# demo company with eight people and the customer Hollmann Bau
+# demo company with eight people and the customer Hollmann Bau (--language de for German)
 docker compose -f deploy/docker-compose.yml exec app python -m atrium.seed
 ```
 
@@ -99,6 +136,8 @@ cd frontend && npm run build && npm run check:guest   # the guest bundle carries
 ```
 
 The wall tests in `backend/tests/wall/` are never weakened or skipped.
+
+The pictures in this README come from `tools/screenshots/stage.py` (a demo company with a scripted LLM, played through the real API) and `frontend/scripts/screenshots.mjs`.
 
 ## Try the mockup flow
 

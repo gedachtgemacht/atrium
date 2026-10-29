@@ -49,5 +49,9 @@ def agent_description(cfg: AgentConfig, lang: str | None) -> str:
     return _tr(cfg, lang, "description")
 
 
+def agent_initial(cfg: AgentConfig, lang: str | None) -> str:
+    return _tr(cfg, lang, "initial")
+
+
 def agent_permission(cfg: AgentConfig, lang: str | None) -> str:
     return _tr(cfg, lang, "permission")

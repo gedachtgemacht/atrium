@@ -1,0 +1,27 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><style>
+@font-face { font-family: Bricolage; src: url("../../frontend/public/fonts/bricolage-grotesque-latin.woff2"); font-weight: 200 800; }
+@font-face { font-family: Hanken; src: url("../../frontend/public/fonts/hanken-grotesk-latin.woff2"); font-weight: 100 900; }
+html, body { margin: 0; width: 1280px; height: 640px; overflow: hidden; }
+body { background: #E6EAE7; color: #1C2430; font-family: Hanken, sans-serif; position: relative; }
+.text { position: absolute; left: 56px; top: 96px; width: 360px; }
+h1 { font-family: Bricolage, sans-serif; font-size: 84px; line-height: 1; margin: 0 0 28px; letter-spacing: -.02em; }
+p { font-size: 28px; line-height: 1.28; margin: 0 0 18px; }
+.small { font-size: 21px; color: #5B6773; margin-top: 34px; }
+.shapes { display: flex; gap: 14px; margin-top: 30px; align-items: center; font-size: 19px; color: #5B6773; }
+.s { width: 30px; height: 30px; border-radius: 50%; background: #CFE0F0; }
+.g { width: 26px; height: 26px; border-radius: 50%; border: 2px dashed #6A47C4; }
+.a { width: 30px; height: 30px; border-radius: 7px; background: #0E6B63; }
+.shot { position: absolute; left: 440px; top: 54px; width: 800px; height: 532px; border-radius: 12px; overflow: hidden;
+        box-shadow: 0 20px 50px rgba(28,36,48,.22); border: 1px solid #C8D0CC; }
+.shot img { width: 800px; display: block; }
+</style></head><body>
+<div class="text">
+  <h1>Atrium</h1>
+  <p>Team chat with your customers in it.</p>
+  <p>AI agents work only in the backroom.</p>
+  <div class="shapes"><span class="s"></span>people <span class="g"></span>guests <span class="a"></span>agents</div>
+  <p class="small">Self hosted, open source (AGPL)</p>
+</div>
+<div class="shot"><img src="../../docs/images/main.png"></div>
+</body></html>

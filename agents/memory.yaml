@@ -26,3 +26,4 @@ translations:
     name: "Gedächtnis"
     description: "Merkt sich Entscheidungen, offene Fragen und Zusagen im Hinterzimmer."
     permission: "Liest nur das Hinterzimmer. Schreibt Einträge ins Gedächtnis."
+    initial: "G"

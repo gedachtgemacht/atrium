@@ -306,7 +306,9 @@ button.plan-empty:hover{background:color-mix(in srgb,var(--plan) 10%,var(--surfa
 .answer .q{font-size:12px;color:var(--muted);margin-bottom:4px}
 .answer .srcs{display:flex;gap:10px;flex-wrap:wrap}
 
-.scrim{position:fixed;inset:56px 0 0 0;background:var(--scrim);z-index:15}
+.scrim{position:fixed;inset:56px 0 0 0;background:var(--scrim);z-index:15;display:none}
+@media (max-width:1180px){.scrim.for-back{display:block}}
+@media (max-width:760px){.scrim.for-rail{display:block}}
 
 /* dialogs */
 dialog{border:1px solid var(--line);border-radius:14px;background:var(--surface);color:var(--ink);padding:0;width:min(520px,calc(100vw - 32px));max-height:calc(100dvh - 40px)}

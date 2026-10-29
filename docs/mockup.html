@@ -1,0 +1,1019 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Atrium Hinterzimmer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#E6EAE7; --surface:#FBFCFB; --surface-2:#F2F5F3; --back:#DAE1E9;
+  --ink:#1C2430; --muted:#5B6773; --line:#C8D0CC; --plan:#2B4C7E;
+  --live:#F2C230; --agent:#0E6B63; --guest:#6A47C4; --focus:#2B4C7E;
+  --av-ink:#1C2430; --scrim:rgba(28,36,48,.35);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#141A20; --surface:#1B2229; --surface-2:#212931; --back:#16202B;
+    --ink:#E5EAEE; --muted:#9AA6B1; --line:#2E3842; --plan:#8FB2E6;
+    --agent:#4CC2B5; --guest:#AC8EF2; --focus:#8FB2E6; --scrim:rgba(0,0,0,.5);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#141A20; --surface:#1B2229; --surface-2:#212931; --back:#16202B;
+  --ink:#E5EAEE; --muted:#9AA6B1; --line:#2E3842; --plan:#8FB2E6;
+  --agent:#4CC2B5; --guest:#AC8EF2; --focus:#8FB2E6; --scrim:rgba(0,0,0,.5);
+}
+[hidden]{display:none!important}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--paper);color:var(--ink);font:15px/1.5 "Hanken Grotesk",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+svg{flex:none}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* who sees what: io = only your internal view, go = only the guest preview */
+.go{display:none}
+body.guest .io{display:none!important}
+body.guest .go{display:inline}
+body.guest .go.blk{display:block}
+body.guest .go.flexi{display:flex}
+
+/* top bar */
+.top{display:flex;align-items:center;gap:16px;height:56px;padding:0 16px;border-bottom:1px solid var(--line);background:var(--paper);position:relative;z-index:30}
+.brand{font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:21px;letter-spacing:-.01em;display:flex;align-items:baseline;gap:10px;white-space:nowrap}
+.brand small,.guest-brand small{font-family:"Hanken Grotesk",sans-serif;font-weight:500;font-size:13px;color:var(--muted);letter-spacing:0}
+.guest-brand{font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:19px;align-items:baseline;gap:10px;white-space:nowrap}
+.ask-global{flex:1;max-width:520px;margin:0 auto;position:relative}
+.ask-global svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted)}
+.ask-global input{width:100%;height:36px;border:1px solid var(--line);background:var(--surface);border-radius:18px;padding:0 14px 0 36px}
+.ask-global input::placeholder{color:var(--muted)}
+.trust{display:flex;gap:8px}
+.chip{font-size:12.5px;padding:4px 10px;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--muted);white-space:nowrap;display:inline-flex;gap:6px;align-items:center}
+.icon-btn{display:none;align-items:center;justify-content:center;width:36px;height:36px;border:1px solid var(--line);border-radius:8px;background:var(--surface);flex:none}
+
+/* layout */
+.app{display:grid;grid-template-columns:290px minmax(0,1fr) 450px;height:calc(100vh - 56px);height:calc(100dvh - 56px)}
+.rail{border-right:1px solid var(--line);overflow:auto;padding:16px 14px 24px;background:var(--paper)}
+.rail h2{font-family:"Bricolage Grotesque",sans-serif;font-weight:700;margin:0;font-size:15px}
+.rail section+section{margin-top:22px}
+.hint{margin:2px 0 10px;font-size:13px;color:var(--muted);line-height:1.4}
+.hint+.hint{margin-top:-6px}
+
+/* floor plan */
+.plan{display:grid;grid-template-columns:1.1fr 1fr;border:2px solid var(--plan);border-radius:3px;background:var(--surface);position:relative}
+.room{appearance:none;border:0;background:transparent;text-align:left;padding:9px 10px 10px;min-height:98px;position:relative;display:flex;flex-direction:column;gap:1px;transition:background-color .2s}
+button.room:hover{background:color-mix(in srgb,var(--plan) 7%,transparent)}
+.room-name{font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:13.5px;color:var(--plan);line-height:1.2}
+.room-meta{font-size:12px;color:var(--muted);line-height:1.3}
+.room-notes{display:flex;align-items:center;gap:4px;font-size:11.5px;font-weight:600;color:var(--agent);line-height:1.3;margin-top:2px}
+.people{display:flex;flex-wrap:wrap;gap:4px;margin-top:auto;padding-top:8px;min-height:32px}
+.r-dispatch{grid-column:1/-1;border-bottom:1.5px solid var(--plan);min-height:116px}
+.r-sales{border-right:1.5px solid var(--plan);border-bottom:1.5px solid var(--plan)}
+.r-ware{border-bottom:1.5px solid var(--plan)}
+.r-quiet{border-right:1.5px solid var(--plan);cursor:not-allowed;background-image:repeating-linear-gradient(135deg,transparent 0 7px,color-mix(in srgb,var(--plan) 13%,transparent) 7px 8px)}
+.lit{background:color-mix(in srgb,var(--live) 16%,transparent)}
+button.room.lit:hover{background:color-mix(in srgb,var(--live) 24%,transparent)}
+.room.here{background:color-mix(in srgb,var(--live) 30%,transparent)}
+.door{position:absolute;bottom:-2px;width:22px;height:22px;pointer-events:none}
+.door::before{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;background:var(--surface)}
+.door::after{content:"";position:absolute;left:0;bottom:2px;width:20px;height:20px;border-left:1px solid var(--plan);border-top:1px solid var(--plan);border-right:1px solid var(--plan);border-top-right-radius:100%;opacity:.45}
+.plan-note{font-size:12.5px;color:var(--muted);margin:8px 2px 0;min-height:18px}
+.livebar{margin-top:10px;border:1px solid var(--line);border-left:4px solid var(--live);border-radius:8px;background:var(--surface);padding:10px 12px;display:none}
+.livebar.show{display:block}
+.livebar strong{display:block;font-size:14px}
+.livebar p{margin:2px 0 0;font-size:13px;color:var(--muted)}
+.livebar p.notes-line{margin:6px 0 10px;color:var(--agent);font-weight:600;display:flex;gap:6px;align-items:flex-start}
+.livebar p.notes-line.off{color:var(--muted);font-weight:400}
+.livebar .row{display:flex;gap:6px;flex-wrap:wrap}
+
+/* avatars: circle = person, dashed circle = guest, square = agent */
+.av{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700;color:var(--av-ink);background:var(--tone,#D6DEE6);flex:none;position:relative}
+.av.s{width:24px;height:24px;font-size:10px}
+.av.xs{width:14px;height:14px;font-size:0}
+.av.guest{background:transparent;border:2px dashed var(--guest);color:var(--guest)}
+.av.agent{border-radius:7px;background:var(--agent);color:var(--surface)}
+.av.s.agent{border-radius:5px}
+.av.xs.agent{border-radius:3px}
+.av.me{box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--plan)}
+.av.talking::after{content:"";position:absolute;inset:-4px;border-radius:50%;border:2px solid var(--live);animation:talk 1.3s ease-in-out infinite}
+.av.muted::before{content:"";position:absolute;width:120%;height:2px;background:var(--ink);transform:rotate(-40deg)}
+@keyframes talk{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(1.08)}}
+.arrive{animation:arrive .45s cubic-bezier(.2,.8,.2,1)}
+@keyframes arrive{from{transform:translateY(10px) scale(.6);opacity:0}to{transform:none;opacity:1}}
+
+/* rail lists */
+.list{list-style:none;margin:6px 0 0;padding:0}
+.list li>*{display:flex;align-items:center;gap:9px;width:100%;padding:5px 8px;border-radius:7px;border:0;background:transparent;text-align:left;font-size:14px;text-decoration:none;color:inherit}
+.list li>*:hover{background:color-mix(in srgb,var(--surface) 70%,transparent)}
+.list .active{background:var(--surface);font-weight:700}
+.list .grow{flex:1;min-width:0}
+.list .sub{display:block;font-size:12.5px;color:var(--muted);font-weight:400;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hash{color:var(--muted);width:14px;text-align:center;font-weight:600}
+.badge{font-size:11.5px;font-weight:700;min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:var(--ink);color:var(--surface);display:grid;place-items:center}
+.pulse{width:8px;height:8px;border-radius:50%;background:var(--agent);animation:blink 1.6s ease-in-out infinite}
+@keyframes blink{50%{opacity:.25}}
+
+/* shared channel */
+.channel{display:flex;flex-direction:column;min-width:0;min-height:0;background:var(--surface)}
+.guest-banner{align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:10px 20px;background:color-mix(in srgb,var(--plan) 12%,var(--surface));border-bottom:1px solid var(--line);font-size:13.5px}
+.guest-banner span{display:inline-flex;gap:8px;align-items:center}
+.chan-head{padding:14px 20px 12px;border-bottom:1px solid var(--line);display:flex;gap:16px;align-items:flex-start;justify-content:space-between}
+.chan-head h1{font-family:"Bricolage Grotesque",sans-serif;font-size:23px;line-height:1.15;margin:0;letter-spacing:-.015em}
+.chan-sub{color:var(--muted);font-size:13.5px;margin:3px 0 10px;max-width:60ch}
+.members{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.stack{display:flex;gap:4px}
+.stack .av.guest{background:var(--surface)}
+.rule-chip{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;padding:3px 10px;border-radius:999px;border:1.5px solid var(--ink)}
+.head-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.btn.back-toggle{display:none}
+
+.feed{flex:1;overflow:auto;padding:6px 20px 20px;min-height:0}
+.day{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--muted);margin:14px 0 2px}
+.day::before,.day::after{content:"";flex:1;height:1px;background:var(--line)}
+.msg{display:grid;grid-template-columns:36px minmax(0,1fr);gap:10px;padding:9px 8px;border-radius:8px;transition:background-color .8s}
+.msg.flash{background:color-mix(in srgb,var(--live) 30%,transparent);transition:none}
+.msg-head{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.name{font-weight:700}
+.tag{font-size:11.5px;padding:0 7px;border-radius:999px;border:1px solid var(--line);color:var(--muted);line-height:18px}
+.tag.guest{border:1px dashed var(--guest);color:var(--guest)}
+.tag.agent{border-color:transparent;background:color-mix(in srgb,var(--agent) 14%,transparent);color:var(--agent);font-weight:600}
+.time{font-size:12px;color:var(--muted)}
+.msg p{margin:2px 0 0;max-width:66ch}
+.mention{color:var(--agent);font-weight:700}
+.pulled{display:flex;gap:6px;align-items:center;font-size:12px;color:var(--plan);margin-top:5px;font-weight:600}
+.pull-btn{display:inline-flex;gap:6px;align-items:center;margin-top:6px;font-size:12.5px;font-weight:600;padding:3px 10px;border-radius:999px;border:1px solid var(--plan);color:var(--plan);background:var(--surface)}
+.pull-btn:hover{background:color-mix(in srgb,var(--plan) 8%,var(--surface))}
+.doc{display:flex;gap:10px;align-items:center;margin-top:8px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2);max-width:380px}
+.doc svg{color:var(--plan)}
+.doc strong{display:block;font-size:14px}
+.doc small{display:block;font-size:12.5px;color:var(--muted)}
+
+.composer{border-top:1px solid var(--line);padding:12px 20px 14px;background:var(--surface)}
+.attach{display:flex;gap:10px;align-items:center;margin-bottom:8px;padding:8px 10px;border:1px solid var(--plan);border-radius:10px;background:color-mix(in srgb,var(--plan) 6%,var(--surface));max-width:420px}
+.attach svg{color:var(--plan)}
+.attach .grow{flex:1;min-width:0}
+.attach strong{display:block;font-size:13.5px}
+.attach small{display:block;font-size:12px;color:var(--muted)}
+.attach .x{border:0;background:none;width:28px;height:28px;border-radius:6px;display:grid;place-items:center;color:var(--muted)}
+.attach .x:hover{background:var(--surface-2)}
+.box{border:1px solid var(--line);border-radius:12px;padding:8px 8px 8px 12px;display:flex;gap:8px;align-items:flex-end;background:var(--surface);transition:box-shadow .6s}
+.box:focus-within{outline:2px solid var(--focus);outline-offset:1px}
+.box.flash{box-shadow:0 0 0 4px color-mix(in srgb,var(--live) 75%,transparent);transition:none}
+.box textarea{flex:1;border:0;resize:none;background:transparent;min-height:26px;max-height:150px;outline:none;padding:4px 0;line-height:1.45}
+.box textarea::placeholder{color:var(--muted)}
+.composer-hint{font-size:12.5px;color:var(--muted);margin:6px 2px 0}
+
+/* buttons */
+.btn{height:34px;padding:0 13px;border-radius:8px;border:1px solid var(--line);background:var(--surface);font-weight:600;font-size:13.5px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.btn.small{height:28px;padding:0 10px;font-size:12.5px}
+.link-btn{border:0;background:none;padding:0;font-weight:600;color:var(--plan);text-decoration:underline;text-underline-offset:3px}
+
+/* backroom: behind the wall */
+.backroom{display:flex;flex-direction:column;min-width:0;min-height:0;background:var(--back);border-left:2px solid var(--plan);position:relative}
+.backroom::before{content:"";position:absolute;left:0;top:0;bottom:0;width:7px;background:repeating-linear-gradient(135deg,transparent 0 5px,color-mix(in srgb,var(--plan) 38%,transparent) 5px 6px);pointer-events:none;z-index:1}
+.back-head{padding:14px 18px 10px 24px}
+.back-title{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.back-title h2{display:flex;align-items:center;gap:8px;margin:0;font-family:"Bricolage Grotesque",sans-serif;font-weight:700;font-size:20px;letter-spacing:-.01em}
+.back-title h2 svg{color:var(--plan)}
+.back-sub{margin:3px 0 0;font-size:13px;color:var(--muted);max-width:52ch}
+.tabs{display:flex;gap:20px;border-bottom:1px solid var(--line);padding:0 18px 0 24px}
+.tabs button{border:0;background:none;padding:8px 0 9px;font-weight:600;font-size:14px;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--plan)}
+.back-body{flex:1;overflow:auto;padding:6px 16px 16px 20px;min-height:0}
+#panelMem{display:flex;flex-direction:column;gap:16px;padding-top:14px}
+.back-composer{padding:10px 16px 14px 20px;border-top:1px solid var(--line)}
+.back-composer .composer-hint{margin-top:5px}
+
+.pull-card{margin:12px 0 4px;padding:10px 12px;border-radius:10px;background:var(--surface);border:1px dashed var(--guest);transition:box-shadow .6s}
+.pull-card.flash{box-shadow:0 0 0 4px color-mix(in srgb,var(--live) 75%,transparent);transition:none}
+.pull-meta{font-size:12px;color:var(--plan);font-weight:600;display:flex;gap:6px;align-items:center;margin-bottom:8px}
+.pull-card blockquote{margin:0;display:grid;grid-template-columns:24px minmax(0,1fr);gap:8px}
+.pull-card blockquote strong{font-size:13.5px}
+.pull-card blockquote p{margin:0;font-size:14px}
+.captured{display:flex;gap:6px;align-items:center;font-size:12.5px;color:var(--muted);margin:-2px 0 4px 54px}
+.pull-card+.captured{margin:4px 0 4px 12px}
+.captured svg{color:var(--plan)}
+
+/* agent work item */
+.work{margin-top:10px;border:1px solid var(--line);border-radius:10px;background:var(--surface);overflow:hidden}
+.work-head{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;background:var(--surface-2);border-bottom:1px solid var(--line)}
+.work-head strong{font-size:14px}
+.state{font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:999px;border:1.5px solid var(--ink);white-space:nowrap}
+.state.staged{border-color:var(--plan);color:var(--plan)}
+.state.sent{background:var(--agent);border-color:var(--agent);color:var(--surface)}
+.work table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:13.5px}
+.work th{font-size:11.5px;font-weight:600;color:var(--muted);text-align:left;padding:7px 12px 3px}
+.work td{padding:6px 12px;border-top:1px solid var(--line)}
+.work .num{text-align:right;white-space:nowrap}
+.work tfoot td{font-weight:700;border-top:1.5px solid var(--ink)}
+.new{font-size:11px;font-weight:700;color:var(--agent);margin-left:6px}
+.rate input{width:78px;text-align:right;padding:2px 6px;border:1px solid var(--plan);border-radius:5px;background:var(--surface)}
+.note{display:flex;gap:9px;padding:9px 12px;border-top:1px solid var(--line);font-size:13px}
+.note svg{margin-top:2px}
+.sources{display:flex;flex-wrap:wrap;gap:6px;padding:0 12px 10px}
+.sources span{font-size:11.5px;padding:2px 8px;border-radius:6px;background:var(--surface-2);border:1px solid var(--line);color:var(--muted)}
+.perm{display:flex;gap:8px;align-items:flex-start;padding:8px 12px;border-top:1px dashed var(--line);font-size:12.5px;color:var(--muted)}
+.perm svg{margin-top:2px}
+.reasoning{display:none;padding:9px 12px;border-top:1px solid var(--line);background:var(--surface-2);font-size:13px}
+.reasoning.show{display:block}
+.reasoning p{margin:0 0 6px}
+.reasoning p:last-child{margin:0}
+.actions{display:flex;gap:6px;flex-wrap:wrap;padding:10px 12px;border-top:1px solid var(--line)}
+.sent-line{display:flex;gap:8px;align-items:flex-start;padding:10px 12px;border-top:1px solid var(--line);font-size:13px;color:var(--plan);font-weight:600}
+.sent-line.done{color:var(--agent)}
+.sent-line span{color:var(--muted);font-weight:400}
+.calc{margin:0;padding:6px 12px 8px;display:grid;grid-template-columns:1fr auto;gap:0 12px;font-size:13.5px}
+.calc dt,.calc dd{margin:0;padding:5px 0;border-bottom:1px solid var(--line)}
+.calc dd{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+.calc dt:nth-last-of-type(1),.calc dd:last-child{border-bottom:0}
+
+/* memory */
+.mem-sub{margin:0;font-size:13px;color:var(--muted)}
+.mem-group h3,.ask h3{font-size:13.5px;font-weight:700;margin:0 0 6px}
+.mem-list{list-style:none;margin:0;padding:0;background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.mem-list li+li{border-top:1px solid var(--line)}
+.mem-item{display:block;width:100%;text-align:left;border:0;background:transparent;padding:9px 12px}
+.mem-item:hover{background:var(--surface-2)}
+.mem-item .t{display:block;font-size:14px;line-height:1.35}
+.mem-item .m{display:block;font-size:12px;color:var(--muted);margin-top:2px}
+.done .t{text-decoration:line-through;color:var(--muted)}
+.done .m{color:var(--agent);font-weight:600}
+.empty{margin:0;padding:10px 12px;border:1px dashed var(--line);border-radius:10px;font-size:13px;color:var(--muted);background:color-mix(in srgb,var(--surface) 50%,transparent)}
+.ask{margin-top:auto;border-top:1px solid var(--line);padding-top:14px}
+.ask form{display:flex;gap:6px}
+.ask input{flex:1;min-width:0;height:34px;border:1px solid var(--line);border-radius:8px;padding:0 10px;background:var(--surface)}
+.ask input::placeholder{color:var(--muted)}
+.suggest{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.suggest button{font-size:12.5px;padding:3px 10px;border-radius:999px;border:1px solid var(--line);background:var(--surface)}
+.suggest button:hover{border-color:var(--muted)}
+.answer{display:none;margin-top:10px;padding:10px 12px;border-radius:10px;background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--plan);font-size:13.5px}
+.answer.show{display:block}
+.answer p{margin:0 0 6px}
+.answer .q{font-size:12px;color:var(--muted);margin-bottom:4px}
+
+.scrim{display:none;position:fixed;inset:56px 0 0 0;background:var(--scrim);z-index:15}
+.scrim.show{display:block}
+
+/* guest preview */
+body.guest .app{grid-template-columns:minmax(0,1fr)}
+body.guest .rail,body.guest .backroom{display:none}
+body.guest .channel{width:100%;max-width:900px;margin:0 auto;border-left:1px solid var(--line);border-right:1px solid var(--line)}
+
+@media (max-width:1180px){
+  .app{grid-template-columns:270px minmax(0,1fr)}
+  .backroom{position:fixed;top:56px;right:0;bottom:0;width:min(460px,94vw);transform:translateX(105%);transition:transform .25s ease;z-index:20;box-shadow:-14px 0 30px rgba(0,0,0,.12)}
+  .backroom.open{transform:none}
+  .btn.back-toggle,.back-close{display:inline-flex}
+  .trust .chip:last-child{display:none}
+}
+@media (max-width:760px){
+  .app{grid-template-columns:minmax(0,1fr)}
+  .rail{position:fixed;top:56px;left:0;bottom:0;width:min(320px,92vw);transform:translateX(-105%);transition:transform .25s ease;z-index:20}
+  .rail.open{transform:none}
+  #menuBtn{display:inline-flex}
+  .trust,.brand small,.guest-brand small{display:none}
+  .top{gap:10px;padding:0 12px}
+  .chan-head{flex-direction:column;gap:10px;padding:12px 16px 10px}
+  .head-actions{justify-content:flex-start}
+  .feed{padding:4px 12px 16px}
+  .composer{padding:10px 12px 12px}
+  .captured{margin-left:46px}
+  .msg{grid-template-columns:30px minmax(0,1fr);gap:8px;padding:8px 4px}
+  .msg>.av{width:30px;height:30px;font-size:11px}
+  .guest-banner{padding:10px 16px}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <button class="icon-btn io" id="menuBtn" aria-label="Räume und Kanäle öffnen" aria-expanded="false" aria-controls="rail">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+  </button>
+  <div class="brand io">Atrium <small>Kessler Logistik</small></div>
+  <div class="guest-brand go flexi">Kessler Logistik <small>im Browser, ohne Konto</small></div>
+  <form class="ask-global io" id="globalAsk" role="search">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    <label class="sr" for="globalInput">Fragen oder suchen</label>
+    <input id="globalInput" type="search" placeholder="Fragen oder suchen" autocomplete="off">
+  </form>
+  <div class="trust io">
+    <span class="chip" title="Nachrichten, Dateien und die Arbeit der Agenten bleiben auf eurem eigenen Server.">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/></svg>
+      Euer Server, Frankfurt</span>
+    <span class="chip" title="Offenes Protokoll. Partner auf anderen Servern können mit euch reden, ohne hierher umzuziehen.">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>
+      Föderiert</span>
+  </div>
+</header>
+
+<div class="app">
+
+  <!-- RAIL -->
+  <nav class="rail" id="rail" aria-label="Räume und Kanäle">
+    <section aria-labelledby="roomsTitle">
+      <h2 id="roomsTitle">Räume</h2>
+      <p class="hint">Rein, reden, raus. Ohne Termin.</p>
+      <p class="hint">Es wird nicht gespeichert, wer wann wo war. Notizen gibt es nur, wenn jemand im Raum sie einschaltet.</p>
+
+      <div class="plan">
+        <button class="room r-dispatch lit" data-room="Dispo" data-with="Tom, Aylin und Jonas sind hier." data-notes="on" data-notes-by="Tom">
+          <span class="room-name">Dispo</span>
+          <span class="room-meta">Tom spricht über die Touren morgen</span>
+          <span class="room-notes" hidden></span>
+          <span class="people">
+            <span class="av s talking" style="--tone:#D3E4C8" title="Tom Becker, spricht gerade">TB</span>
+            <span class="av s" style="--tone:#EBD2DD" title="Aylin Demir">AD</span>
+            <span class="av s" style="--tone:#E4DCC6" title="Jonas Wirth">JW</span>
+          </span>
+          <span class="door" style="left:46%"></span>
+        </button>
+        <button class="room r-sales" data-room="Vertriebsecke" data-with="Mia ist hier und offen für Fragen." data-notes="off">
+          <span class="room-name">Vertriebsecke</span>
+          <span class="room-meta">Mia, offen für Fragen</span>
+          <span class="room-notes" hidden></span>
+          <span class="people">
+            <span class="av s" style="--tone:#CFE2E2" title="Mia Schulz">MS</span>
+          </span>
+          <span class="door" style="left:18px"></span>
+        </button>
+        <button class="room r-ware" data-room="Lagerbüro" data-with="Kai und Sven sind hier." data-notes="off">
+          <span class="room-name">Lagerbüro</span>
+          <span class="room-meta">Kai und Sven</span>
+          <span class="room-notes" hidden></span>
+          <span class="people">
+            <span class="av s" style="--tone:#E7D8BF" title="Kai Brenner">KB</span>
+            <span class="av s" style="--tone:#D8D4EC" title="Sven Albers">SA</span>
+          </span>
+          <span class="door" style="right:18px"></span>
+        </button>
+        <button class="room r-quiet" id="quietRoom" aria-disabled="true">
+          <span class="room-name">Ruheraum</span>
+          <span class="room-meta">Ole arbeitet konzentriert</span>
+          <span class="people">
+            <span class="av s" style="--tone:#DCE3EC" title="Ole Martens">OM</span>
+          </span>
+        </button>
+        <div class="room r-lobby">
+          <span class="room-name">Flur</span>
+          <span class="room-meta" id="lobbyMeta">Du bist hier</span>
+          <span class="people" id="lobbyPeople">
+            <span class="av s me" id="me" style="--tone:#CFE0F0" title="Du, Lena Kraft">LK</span>
+          </span>
+        </div>
+      </div>
+      <p class="plan-note" id="planNote" aria-live="polite"></p>
+
+      <div class="livebar" id="livebar" aria-live="polite">
+        <strong id="liveTitle"></strong>
+        <p id="liveWith"></p>
+        <p class="notes-line" id="liveNotes"></p>
+        <div class="row">
+          <button class="btn small" id="muteBtn">Stumm</button>
+          <button class="btn small" id="notesBtn">Notizen aus</button>
+          <button class="btn small" id="leaveBtn">Raum verlassen</button>
+        </div>
+      </div>
+    </section>
+
+    <section aria-labelledby="chTitle">
+      <h2 id="chTitle">Kanäle</h2>
+      <ul class="list">
+        <li><a href="#"><span class="hash">#</span><span class="grow">dispo</span><span class="badge">4</span></a></li>
+        <li><a href="#"><span class="hash">#</span><span class="grow">lager</span></a></li>
+        <li><a href="#"><span class="hash">#</span><span class="grow">vertrieb</span><span class="badge">1</span></a></li>
+        <li><a href="#"><span class="hash">#</span><span class="grow">ankündigungen</span></a></li>
+      </ul>
+    </section>
+
+    <section aria-labelledby="partnerTitle">
+      <h2 id="partnerTitle">Mit Partnern</h2>
+      <ul class="list">
+        <li><a href="#" class="active" aria-current="page"><span class="av xs guest"></span><span class="grow">Hollmann Bau<span class="sub">Kundenkanal plus Hinterzimmer</span></span></a></li>
+        <li><a href="#"><span class="av xs guest"></span><span class="grow">Frachtpool<span class="sub">6 Firmen</span></span><span class="badge">2</span></a></li>
+        <li><a href="#"><span class="av xs guest"></span><span class="grow">Brandt Baustoffe<span class="sub">auf ihrem eigenen Server</span></span></a></li>
+      </ul>
+    </section>
+
+    <section aria-labelledby="agentTitle">
+      <h2 id="agentTitle">Agenten</h2>
+      <p class="hint">Arbeiten nur intern, nie in Kundenkanälen.</p>
+      <ul class="list">
+        <li><a href="#"><span class="av xs agent"></span><span class="grow">Angebotsagent<span class="sub" id="quoteStatus">Entwurf für Hollmann wartet auf dich</span></span><span class="pulse" id="quotePulse" aria-hidden="true"></span></a></li>
+        <li><a href="#"><span class="av xs agent"></span><span class="grow">Protokollagent<span class="sub" id="protoStatus"></span></span></a></li>
+        <li><a href="#"><span class="av xs agent"></span><span class="grow">Rechnungsagent<span class="sub">2 Rechnungen warten auf Freigabe</span></span><span class="badge">2</span></a></li>
+      </ul>
+    </section>
+  </nav>
+
+  <!-- SHARED CHANNEL -->
+  <main class="channel" id="shared">
+    <div class="guest-banner go flexi">
+      <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><span><strong>Vorschau:</strong> So sieht Sarah Hollmann diesen Kanal.</span></span>
+      <button class="btn small" id="exitGuest">Zurück zu deiner Ansicht</button>
+    </div>
+
+    <div class="chan-head">
+      <div>
+        <h1><span class="io">Hollmann Bau</span><span class="go">Kessler Logistik</span></h1>
+        <p class="chan-sub"><span class="io">Kundenkanal mit Hollmann Bau GmbH. Sarah und Jan sind per Link dabei, ohne Konto.</span><span class="go">Euer Kanal mit Kessler Logistik. Du bist per Link dabei und brauchst kein Konto.</span></p>
+        <div class="members">
+          <div class="stack" aria-label="Mitglieder">
+            <span class="av s" style="--tone:#CFE0F0" title="Lena Kraft">LK</span>
+            <span class="av s" style="--tone:#D3E4C8" title="Tom Becker">TB</span>
+            <span class="av s guest" title="Sarah Hollmann, Gast">SH</span>
+            <span class="av s guest" title="Jan Petersen, Gast">JP</span>
+          </div>
+          <span class="rule-chip" title="Agenten können diesen Kanal weder lesen noch hier schreiben.">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>
+            Hier schreiben nur Menschen</span>
+        </div>
+      </div>
+      <div class="head-actions io">
+        <button class="btn" id="guestBtn">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+          Als Sarah ansehen</button>
+        <button class="btn back-toggle" id="backToggle" aria-controls="backroom" aria-expanded="false">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+          Hinterzimmer</button>
+      </div>
+    </div>
+
+    <div class="feed" id="feed" aria-live="polite">
+      <div class="day">Heute</div>
+
+      <div class="msg" id="m-s1">
+        <span class="av guest">SH</span>
+        <div>
+          <div class="msg-head"><span class="name">Sarah Hollmann</span><span class="tag guest"><span class="io">Gast von Hollmann Bau</span><span class="go">Du</span></span><span class="time">09:12</span></div>
+          <p>Guten Morgen! Für 2027 hätten wir gern 40 Ladungen im Monat ab Januar. Gleiche Strecken wie dieses Jahr, plus unser neuer Standort in Erfurt. Schafft ihr ein Angebot bis Freitag?</p>
+          <div class="pulled io"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Von Lena ins Hinterzimmer geholt, 09:19</div>
+        </div>
+      </div>
+
+      <div class="msg" id="m-l1">
+        <span class="av" style="--tone:#CFE0F0">LK</span>
+        <div>
+          <div class="msg-head"><span class="name">Lena Kraft</span><span class="tag"><span class="io">Vertrieb, du</span><span class="go">Kessler Logistik</span></span><span class="time">09:24</span></div>
+          <p>Hallo Sarah, danke dir! Wir rechnen das durch, das Angebot kommt bis Freitag.</p>
+        </div>
+      </div>
+
+      <div class="msg" id="m-s2">
+        <span class="av guest">SH</span>
+        <div>
+          <div class="msg-head"><span class="name">Sarah Hollmann</span><span class="tag guest"><span class="io">Gast von Hollmann Bau</span><span class="go">Du</span></span><span class="time">10:02</span></div>
+          <p>Noch was: Ginge auch ein Zahlungsziel von 45 Tagen?</p>
+          <button class="pull-btn io" id="pullBtn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h12M13 7l5 5-5 5"/></svg>Ins Hinterzimmer holen</button>
+        </div>
+      </div>
+    </div>
+
+    <form class="composer" id="composer">
+      <div class="attach" id="attach" hidden>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M9 12h6M9 16h6"/></svg>
+        <span class="grow"><strong>Angebot 2027 Hollmann Bau.pdf</strong><small id="attachInfo"></small></span>
+        <button type="button" class="x" id="attachRemove" aria-label="Anhang entfernen"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+      </div>
+      <div class="box">
+        <label class="sr" for="msgInput">Nachricht</label>
+        <textarea id="msgInput" rows="1" placeholder="Nachricht an Hollmann Bau"></textarea>
+        <button class="btn primary" type="submit">Senden</button>
+      </div>
+      <p class="composer-hint io">Hollmann Bau liest hier mit. Agenten lesen diesen Kanal nicht und schreiben hier nicht.</p>
+      <p class="composer-hint go blk">Hier schreiben nur Menschen von Kessler Logistik. Nachrichten liegen auf deren Server in Frankfurt. Kessler kann einzelne Nachrichten intern mit KI bearbeiten.</p>
+    </form>
+  </main>
+
+  <!-- BACKROOM -->
+  <aside class="backroom" id="backroom" aria-label="Hinterzimmer">
+    <div class="back-head">
+      <div class="back-title">
+        <h2><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Hinterzimmer</h2>
+        <button class="icon-btn back-close" id="backClose" aria-label="Hinterzimmer schließen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+      </div>
+      <p class="back-sub">Nur Kessler sieht das. Agenten arbeiten nur hier und lesen nur, was ihr aus dem Kundenkanal reinholt.</p>
+    </div>
+    <div class="tabs" role="tablist" aria-label="Hinterzimmer">
+      <button role="tab" id="tabWork" aria-selected="true" aria-controls="panelWork">Arbeit</button>
+      <button role="tab" id="tabMem" aria-selected="false" aria-controls="panelMem">Gedächtnis</button>
+    </div>
+
+    <div class="back-body" id="panelWork" role="tabpanel" aria-labelledby="tabWork">
+      <div class="pull-card" id="b-pull1">
+        <div class="pull-meta"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h12M13 7l5 5-5 5"/></svg>Lena hat das aus dem Kundenkanal geholt, 09:19</div>
+        <blockquote><span class="av s guest">SH</span><div><strong>Sarah Hollmann</strong><p>Guten Morgen! Für 2027 hätten wir gern 40 Ladungen im Monat ab Januar. Gleiche Strecken wie dieses Jahr, plus unser neuer Standort in Erfurt. Schafft ihr ein Angebot bis Freitag?</p></div></blockquote>
+      </div>
+      <div class="captured"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M6 3h12v18l-6-4-6 4z"/></svg>Gemerkt als Zusage: Angebot an Sarah bis Freitag</div>
+
+      <div class="msg" id="b-lena">
+        <span class="av" style="--tone:#CFE0F0">LK</span>
+        <div>
+          <div class="msg-head"><span class="name">Lena Kraft</span><span class="tag">Vertrieb, du</span><span class="time">09:20</span></div>
+          <p><span class="mention">@Angebotsagent</span> rechne das bitte: 40 Ladungen im Monat, Strecken von 2026 plus Erfurt, Preise 2026 plus 3 %.</p>
+        </div>
+      </div>
+      <div class="captured"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M6 3h12v18l-6-4-6 4z"/></svg>Gemerkt als Entscheidung</div>
+
+      <div class="msg" id="b-agent">
+        <span class="av agent">A</span>
+        <div>
+          <div class="msg-head"><span class="name">Angebotsagent</span><span class="tag agent">Agent</span><span class="time">09:21</span></div>
+          <p>Entwurf steht. Schau dir Erfurt an, bevor er rausgeht.</p>
+
+          <div class="work" id="work">
+            <div class="work-head">
+              <strong>Angebot Hollmann Bau 2027</strong>
+              <span class="state" id="workState">Entwurf, nur intern</span>
+            </div>
+            <table>
+              <thead><tr><th>Strecke</th><th class="num">Ladungen</th><th class="num">Preis je Ladung</th></tr></thead>
+              <tbody>
+                <tr><td>Dortmund → Hamm</td><td class="num" data-loads="18">18</td><td class="num rate" data-rate="412">412 €</td></tr>
+                <tr><td>Dortmund → Münster</td><td class="num" data-loads="14">14</td><td class="num rate" data-rate="468">468 €</td></tr>
+                <tr><td>Dortmund → Erfurt<span class="new">neu</span></td><td class="num" data-loads="8">8</td><td class="num rate" data-rate="1190">1.190 €</td></tr>
+              </tbody>
+              <tfoot><tr><td>Pro Monat</td><td class="num">40</td><td class="num" id="total">23.488 €</td></tr></tfoot>
+            </table>
+            <div class="note">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5v.01"/></svg>
+              <span>Unsere eigenen LKW schaffen im Januar 4 der 8 Ladungen nach Erfurt. Die anderen 4 fährt ein Subunternehmer, das ist im Preis schon drin.</span>
+            </div>
+            <div class="sources" aria-label="Woher die Zahlen kommen">
+              <span>Preise aus dem ERP</span><span>Kapazität aus der Dispo</span><span>Konditionen aus dem Vertrag 2026</span>
+            </div>
+            <div class="reasoning" id="reasoning">
+              <p>Hamm und Münster: Vertragspreise 2026 aus dem ERP, plus 3 % wie gewünscht.</p>
+              <p>Erfurt hat noch keinen Preis. Gerechnet mit rund 330 km einfach, unserem Standardsatz pro Kilometer und 8 % Aufschlag für die Ladungen beim Subunternehmer.</p>
+              <p>Die Dispo zeigt ab Januar 4 freie Plätze im Monat auf der Strecke.</p>
+            </div>
+            <div class="perm">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+              <span>Darf ERP und Dispo lesen und Entwürfe schreiben, nur hier im Hinterzimmer. Kann nichts an Kunden schicken.</span>
+            </div>
+            <div class="actions" id="actions">
+              <button class="btn primary" id="takeBtn">In den Kundenkanal übernehmen</button>
+              <button class="btn" id="editBtn">Preise ändern</button>
+              <button class="btn" id="whyBtn" aria-expanded="false" aria-controls="reasoning">Begründung</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="msg" id="b-tom">
+        <span class="av" style="--tone:#D3E4C8">TB</span>
+        <div>
+          <div class="msg-head"><span class="name">Tom Becker</span><span class="tag">Dispo</span><span class="time">09:34</span></div>
+          <p>Erfurt passt. Zwei Frächter aus dem Frachtpool fahren die Strecke dienstags und donnerstags. Ich bestätige beide bis Donnerstag.</p>
+        </div>
+      </div>
+      <div class="captured"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M6 3h12v18l-6-4-6 4z"/></svg>Gemerkt als Entscheidung und Zusage</div>
+    </div>
+
+    <div class="back-body" id="panelMem" role="tabpanel" aria-labelledby="tabMem" hidden>
+      <p class="mem-sub">Gepflegt aus dem Hinterzimmer und aus allem, was ihr reinholt. Ein Klick zeigt die Quelle.</p>
+
+      <div class="mem-group">
+        <h3>Entschieden</h3>
+        <ul class="mem-list">
+          <li><button class="mem-item" data-jump="b-lena"><span class="t">Preise 2027 sind die Preise 2026 plus 3 %</span><span class="m">Lena, heute 09:20</span></button></li>
+          <li><button class="mem-item" data-jump="b-tom"><span class="t">Erfurt fährt der Frachtpool, dienstags und donnerstags</span><span class="m">Tom, heute 09:34</span></button></li>
+        </ul>
+      </div>
+
+      <div class="mem-group">
+        <h3>Offen</h3>
+        <p class="empty" id="openEmpty">Nichts offen. Fragen aus dem Kundenkanal landen hier, sobald ihr sie reinholt.</p>
+        <ul class="mem-list" id="openList" hidden>
+          <li id="p-pay"><button class="mem-item" data-jump="b-pay"><span class="t">Zahlungsziel 45 Tage für Hollmann?</span><span class="m">Sarah fragt, 10:02. Rechnung liegt vor, Antwort fehlt.</span></button></li>
+        </ul>
+      </div>
+
+      <div class="mem-group">
+        <h3>Zugesagt</h3>
+        <ul class="mem-list">
+          <li id="p-price"><button class="mem-item" data-jump="b-pull1"><span class="t">Angebot an Sarah bis Freitag</span><span class="m">Lena</span></button></li>
+          <li><button class="mem-item" data-jump="b-tom"><span class="t">Beide Frächter für Erfurt bestätigen</span><span class="m">Tom, bis Donnerstag</span></button></li>
+        </ul>
+      </div>
+
+      <div class="ask">
+        <h3><label for="askInput">Frag das Hinterzimmer</label></h3>
+        <form id="askForm">
+          <input id="askInput" type="text" placeholder="Was ist noch offen?" autocomplete="off">
+          <button class="btn" type="submit">Fragen</button>
+        </form>
+        <div class="suggest">
+          <button type="button" data-q="Was ist noch offen?">Was ist noch offen?</button>
+          <button type="button" data-q="Was will Sarah?">Was will Sarah?</button>
+          <button type="button" data-q="Schaffen wir Erfurt?">Schaffen wir Erfurt?</button>
+          <button type="button" data-q="Wie ist der Preis gerechnet?">Wie ist der Preis gerechnet?</button>
+        </div>
+        <div class="answer" id="answer" aria-live="polite"></div>
+      </div>
+    </div>
+
+    <form class="back-composer" id="backComposer">
+      <div class="box">
+        <label class="sr" for="backInput">Nachricht ins Hinterzimmer</label>
+        <textarea id="backInput" rows="1" placeholder="Ans Team oder @Agent"></textarea>
+        <button class="btn primary" type="submit">Senden</button>
+      </div>
+      <p class="composer-hint">Bleibt intern. Hollmann Bau sieht nichts davon.</p>
+    </form>
+  </aside>
+</div>
+<div class="scrim" id="scrim"></div>
+
+<script>
+(function(){
+  const $ = s => document.querySelector(s);
+  const $$ = s => Array.from(document.querySelectorAll(s));
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const fmt = new Intl.NumberFormat('de-DE', {style:'currency', currency:'EUR', maximumFractionDigits:0});
+  const eur = n => fmt.format(Math.round(n));
+  const now = () => new Date().toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'});
+  const esc = s => s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const ICON = {
+    lock:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>',
+    arrow:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h12M13 7l5 5-5 5"/></svg>',
+    check:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10"/></svg>',
+    pen:'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>',
+    info:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5v.01"/></svg>',
+    doc:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M9 12h6M9 16h6"/></svg>',
+    mark:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M6 3h12v18l-6-4-6 4z"/></svg>'
+  };
+
+  $$('a[href="#"]').forEach(a => a.addEventListener('click', e => e.preventDefault()));
+
+  /* ---------- drawers ---------- */
+  const rail = $('#rail'), back = $('#backroom'), scrim = $('#scrim');
+  const menuBtn = $('#menuBtn'), backToggle = $('#backToggle');
+  const isDrawer = el => getComputedStyle(el).position === 'fixed';
+  function closeDrawers(){
+    rail.classList.remove('open'); back.classList.remove('open'); scrim.classList.remove('show');
+    menuBtn.setAttribute('aria-expanded','false'); backToggle.setAttribute('aria-expanded','false');
+  }
+  function openRail(){ closeDrawers(); rail.classList.add('open'); scrim.classList.add('show'); menuBtn.setAttribute('aria-expanded','true'); }
+  function openBack(){
+    if (!isDrawer(back)) return;
+    closeDrawers(); back.classList.add('open'); scrim.classList.add('show'); backToggle.setAttribute('aria-expanded','true');
+  }
+  menuBtn.addEventListener('click', () => rail.classList.contains('open') ? closeDrawers() : openRail());
+  backToggle.addEventListener('click', () => back.classList.contains('open') ? closeDrawers() : openBack());
+  $('#backClose').addEventListener('click', closeDrawers);
+  scrim.addEventListener('click', closeDrawers);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawers(); });
+
+  /* ---------- tabs ---------- */
+  function setTab(which){
+    const work = which === 'work';
+    $('#tabWork').setAttribute('aria-selected', String(work));
+    $('#tabMem').setAttribute('aria-selected', String(!work));
+    $('#panelWork').hidden = !work;
+    $('#panelMem').hidden = work;
+    $('#backComposer').hidden = !work;
+  }
+  $('#tabWork').addEventListener('click', () => setTab('work'));
+  $('#tabMem').addEventListener('click', () => setTab('mem'));
+
+  /* ---------- rooms ---------- */
+  const me = $('#me');
+  let current = null;
+  const joinable = $$('.room[data-room]');
+  function place(el, target){
+    target.appendChild(el);
+    el.classList.remove('arrive'); void el.offsetWidth; el.classList.add('arrive');
+  }
+  function updateProto(){
+    const on = joinable.filter(r => r.dataset.notes === 'on').map(r => r.dataset.room);
+    $('#protoStatus').textContent = on.length ? 'Schreibt mit in: ' + on.join(', ') : 'Gerade in keinem Raum';
+  }
+  function renderNotes(room){
+    const on = room.dataset.notes === 'on';
+    const n = room.querySelector('.room-notes');
+    n.innerHTML = on ? ICON.pen + 'Notizen an, von ' + esc(room.dataset.notesBy || '') : '';
+    n.hidden = !on;
+    let ag = room.querySelector('.note-agent');
+    if (on && !ag){
+      ag = document.createElement('span');
+      ag.className = 'av s agent note-agent';
+      ag.title = 'Protokollagent, schreibt mit';
+      ag.textContent = 'P';
+      room.querySelector('.people').appendChild(ag);
+    }
+    if (!on && ag) ag.remove();
+    updateProto();
+  }
+  function updateLive(){
+    if (!current) return;
+    const on = current.dataset.notes === 'on';
+    $('#liveTitle').textContent = 'Du bist in ' + current.dataset.room;
+    $('#liveWith').textContent = current.dataset.with;
+    const ln = $('#liveNotes');
+    ln.className = 'notes-line' + (on ? '' : ' off');
+    ln.innerHTML = on
+      ? ICON.pen + '<span>Notizen laufen, eingeschaltet von ' + esc(current.dataset.notesBy) + '. Alle im Raum sehen das.</span>'
+      : '<span>Keine Notizen. Hier wird nichts mitgeschrieben.</span>';
+    $('#notesBtn').textContent = on ? 'Notizen aus' : 'Notizen an';
+  }
+  joinable.forEach(room => {
+    renderNotes(room);
+    room.addEventListener('click', () => {
+      if (current === room) return;
+      joinable.forEach(r => r.classList.remove('here'));
+      room.classList.add('here');
+      place(me, room.querySelector('.people'));
+      current = room;
+      $('#lobbyMeta').textContent = 'Leer';
+      $('#livebar').classList.add('show');
+      $('#planNote').textContent = '';
+      me.classList.remove('muted'); $('#muteBtn').textContent = 'Stumm';
+      updateLive();
+    });
+  });
+  $('#quietRoom').addEventListener('click', () => {
+    $('#planNote').textContent = 'Ole arbeitet konzentriert. Schreib ihm lieber, er sieht es, wenn er rauskommt.';
+  });
+  $('#leaveBtn').addEventListener('click', () => {
+    if (!current) return;
+    current.classList.remove('here'); current = null;
+    place(me, $('#lobbyPeople'));
+    me.classList.remove('muted');
+    $('#lobbyMeta').textContent = 'Du bist hier';
+    $('#livebar').classList.remove('show');
+  });
+  $('#muteBtn').addEventListener('click', e => {
+    const m = me.classList.toggle('muted');
+    e.currentTarget.textContent = m ? 'Ton an' : 'Stumm';
+  });
+  $('#notesBtn').addEventListener('click', () => {
+    if (!current) return;
+    if (current.dataset.notes === 'on'){ current.dataset.notes = 'off'; current.dataset.notesBy = ''; }
+    else { current.dataset.notes = 'on'; current.dataset.notesBy = 'dir'; }
+    renderNotes(current); updateLive();
+  });
+
+  /* ---------- jump to source ---------- */
+  function flash(el){
+    el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+    setTimeout(() => el.classList.remove('flash'), 1400);
+  }
+  function jump(id){
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (back.contains(el)){
+      setTab('work');
+      if (isDrawer(back) && !back.classList.contains('open')) openBack();
+    } else if (back.classList.contains('open')) closeDrawers();
+    el.scrollIntoView({behavior: reduce ? 'auto' : 'smooth', block:'center'});
+    flash(el);
+  }
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-jump]');
+    if (b) jump(b.dataset.jump);
+  });
+
+  /* ---------- helpers for messages ---------- */
+  const feed = $('#feed'), work = $('#panelWork');
+  function add(container, html){
+    const wrap = document.createElement('div');
+    wrap.innerHTML = html.trim();
+    const el = wrap.firstElementChild;
+    container.appendChild(el);
+    container.scrollTop = container.scrollHeight;
+    return el;
+  }
+  const head = (name, tagHtml, t) => '<div class="msg-head"><span class="name">' + name + '</span>' + tagHtml + '<span class="time">' + t + '</span></div>';
+  const lenaTag = '<span class="tag"><span class="io">Vertrieb, du</span><span class="go">Kessler Logistik</span></span>';
+  const sarahTag = '<span class="tag guest"><span class="io">Gast von Hollmann Bau</span><span class="go">Du</span></span>';
+  const agentMsg = (t, inner, id) => '<div class="msg"' + (id ? ' id="' + id + '"' : '') + '><span class="av agent">A</span><div>' + head('Angebotsagent', '<span class="tag agent">Agent</span>', t) + inner + '</div></div>';
+
+  /* ---------- quote work item ---------- */
+  let editing = false, staged = false, curTotal = 23488;
+  function recalc(){
+    let total = 0;
+    $$('#work tbody tr').forEach(tr => {
+      const loads = +tr.querySelector('[data-loads]').dataset.loads;
+      const cell = tr.querySelector('.rate');
+      const inp = cell.querySelector('input');
+      total += loads * (inp ? (+inp.value || 0) : +cell.dataset.rate);
+    });
+    curTotal = total;
+    $('#total').textContent = eur(total);
+  }
+  function setEditing(on){
+    editing = on;
+    $$('#work .rate').forEach(td => {
+      if (on){
+        td.innerHTML = '<input type="number" min="0" step="1" aria-label="Preis je Ladung" value="' + td.dataset.rate + '">';
+        td.querySelector('input').addEventListener('input', recalc);
+      } else {
+        const inp = td.querySelector('input');
+        if (inp) td.dataset.rate = Math.max(0, Math.round(+inp.value || 0));
+        td.textContent = eur(+td.dataset.rate);
+      }
+    });
+    recalc();
+    const b = $('#editBtn'); if (b) b.textContent = on ? 'Fertig' : 'Preise ändern';
+  }
+  $('#editBtn').addEventListener('click', () => setEditing(!editing));
+  $('#whyBtn').addEventListener('click', e => {
+    const open = $('#reasoning').classList.toggle('show');
+    e.currentTarget.setAttribute('aria-expanded', String(open));
+    e.currentTarget.textContent = open ? 'Begründung ausblenden' : 'Begründung';
+  });
+
+  const input = $('#msgInput'), attach = $('#attach');
+  function grow(el){ el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 150) + 'px'; }
+  function focusComposer(){
+    closeDrawers();
+    grow(input);
+    flash($('#composer .box'));
+    input.focus({preventScroll:true});
+  }
+
+  $('#takeBtn').addEventListener('click', () => {
+    if (staged) return;
+    if (editing) setEditing(false);
+    staged = true;
+    const st = $('#workState'); st.textContent = 'Bei Lena'; st.className = 'state staged';
+    const line = document.createElement('div');
+    line.className = 'sent-line'; line.id = 'quoteLine';
+    line.innerHTML = ICON.check + '<div>Liegt jetzt in deinem Nachrichtenfeld im Kundenkanal.<br><span>Raus geht es erst, wenn du dort auf Senden drückst.</span></div>';
+    $('#actions').replaceWith(line);
+    $('#attachInfo').textContent = '3 Strecken, 40 Ladungen, ' + eur(curTotal) + ' im Monat';
+    attach.hidden = false;
+    const msg = 'Hallo Sarah, hier unser Angebot für 2027. Erfurt ist neu dabei, die Details stehen im Dokument.';
+    input.value = input.value.trim() ? input.value.trim() + '\n\n' + msg : msg;
+    $('#quoteStatus').textContent = 'Entwurf liegt bei Lena';
+    focusComposer();
+  });
+  $('#attachRemove').addEventListener('click', () => {
+    attach.hidden = true;
+    const ql = $('#quoteLine');
+    if (ql) ql.innerHTML = ICON.check + '<div>Anhang wieder entfernt.<br><span>Nichts wurde gesendet.</span></div>';
+  });
+
+  /* ---------- pull a customer message into the backroom ---------- */
+  let pulled = false, payDrafted = false, payDone = false;
+  $('#pullBtn').addEventListener('click', e => {
+    if (pulled) return;
+    pulled = true;
+    const t = now();
+    const note = document.createElement('div');
+    note.className = 'pulled io';
+    note.innerHTML = ICON.lock + 'Von dir ins Hinterzimmer geholt, ' + t;
+    e.currentTarget.replaceWith(note);
+
+    setTab('work');
+    add(work, '<div class="pull-card" id="b-pull2"><div class="pull-meta">' + ICON.arrow + 'Du hast das aus dem Kundenkanal geholt, ' + t + '</div><blockquote><span class="av s guest">SH</span><div><strong>Sarah Hollmann</strong><p>Noch was: Ginge auch ein Zahlungsziel von 45 Tagen?</p></div></blockquote></div>');
+    openBack();
+
+    setTimeout(() => {
+      const inner =
+        '<p>Ich hab das Zahlungsziel durchgerechnet.</p>' +
+        '<div class="work"><div class="work-head"><strong>45 statt 30 Tage</strong><span class="state">Nur intern</span></div>' +
+        '<dl class="calc"><dt>Hollmann zahlt im Schnitt</dt><dd>15 Tage später</dd><dt>Länger offen</dt><dd>rund 11.600 €</dd><dt>Kosten bei 6 % Zins</dt><dd>rund 700 € im Jahr</dd><dt>Anteil am Umsatz</dt><dd>etwa 0,25 %</dd></dl>' +
+        '<div class="note">' + ICON.info + '<span>Vorschlag: 45 Tage gegen 0,3 % höhere Preise. Oder 30 Tage, dann bleibt das Angebot, wie es ist.</span></div>' +
+        '<div class="sources"><span>Umsatz aus dem Angebotsentwurf</span><span>Zinssatz aus den Einstellungen</span></div>' +
+        '<div class="actions"><button class="btn primary" type="button" id="draftPay">Antwort im Kundenkanal entwerfen</button></div></div>';
+      add(work, agentMsg(now(), inner, 'b-pay'));
+      add(work, '<div class="captured">' + ICON.mark + 'Gemerkt als offene Frage</div>');
+      $('#openEmpty').hidden = true;
+      $('#openList').hidden = false;
+      $('#draftPay').addEventListener('click', () => {
+        payDrafted = true;
+        const txt = 'Hallo Sarah, 45 Tage gehen, wenn die Preise um 0,3 % steigen. Mit 30 Tagen bleibt das Angebot, wie es ist. Was passt euch besser?';
+        input.value = input.value.trim() ? input.value.trim() + '\n\n' + txt : txt;
+        focusComposer();
+      });
+    }, 900);
+  });
+
+  /* ---------- shared composer ---------- */
+  input.addEventListener('input', () => grow(input));
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); $('#composer').requestSubmit(); }
+  });
+  $('#composer').addEventListener('submit', e => {
+    e.preventDefault();
+    const guest = document.body.classList.contains('guest');
+    const text = input.value.trim();
+    const withDoc = !guest && !attach.hidden;
+    if (!text && !withDoc) return;
+    const t = now();
+    const body = text ? '<p>' + esc(text).replace(/\n/g, '<br>') + '</p>' : '';
+    const doc = withDoc ? '<div class="doc">' + ICON.doc + '<div><strong>Angebot 2027 Hollmann Bau.pdf</strong><small>3 Strecken, 40 Ladungen, ' + eur(curTotal) + ' im Monat</small></div></div>' : '';
+    const el = guest
+      ? add(feed, '<div class="msg"><span class="av guest">SH</span><div>' + head('Sarah Hollmann', sarahTag, t) + body + '</div></div>')
+      : add(feed, '<div class="msg"><span class="av" style="--tone:#CFE0F0">LK</span><div>' + head('Lena Kraft', lenaTag, t) + body + doc + '</div></div>');
+    flash(el);
+    input.value = ''; grow(input);
+
+    if (withDoc){
+      attach.hidden = true;
+      const st = $('#workState'); st.textContent = 'Gesendet ' + t; st.className = 'state sent';
+      const ql = $('#quoteLine');
+      if (ql){ ql.classList.add('done'); ql.innerHTML = ICON.check + '<div>Von dir an Sarah gesendet, ' + t + '.<br><span>Ging als deine Nachricht raus, nicht als Agent.</span></div>'; }
+      const p = $('#p-price'); p.classList.add('done'); p.querySelector('.m').textContent = 'Erledigt heute um ' + t;
+      $('#quoteStatus').textContent = 'Fertig, Lena hat gesendet';
+      const pulse = $('#quotePulse'); if (pulse) pulse.remove();
+    }
+    if (!guest && payDrafted && !payDone && /45/.test(text)){
+      payDone = true;
+      const p = $('#p-pay'); p.classList.add('done'); p.querySelector('.m').textContent = 'Beantwortet von Lena um ' + t;
+    }
+  });
+
+  /* ---------- backroom composer ---------- */
+  const backInput = $('#backInput');
+  backInput.addEventListener('input', () => grow(backInput));
+  backInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); $('#backComposer').requestSubmit(); }
+  });
+  $('#backComposer').addEventListener('submit', e => {
+    e.preventDefault();
+    const text = backInput.value.trim();
+    if (!text) return;
+    const body = esc(text).replace(/(@\w*agent)/gi, '<span class="mention">$1</span>').replace(/\n/g, '<br>');
+    add(work, '<div class="msg"><span class="av" style="--tone:#CFE0F0">LK</span><div>' + head('Lena Kraft', '<span class="tag">Vertrieb, du</span>', now()) + '<p>' + body + '</p></div></div>');
+    backInput.value = ''; grow(backInput);
+    if (/@/.test(text)){
+      setTimeout(() => add(work, agentMsg(now(), '<p>Bin dran. Das Ergebnis kommt hier ins Hinterzimmer, rausschicken musst du es selbst.</p>')), 900);
+    }
+  });
+
+  /* ---------- ask the backroom ---------- */
+  const BOUNDARY = 'Dazu weiß ich nichts. Den Kundenkanal lese ich nicht mit, ich sehe nur, was ihr ins Hinterzimmer holt.';
+  function ask(q){
+    const ql = q.toLowerCase();
+    let a, j = null;
+    if (/zahlungsziel|45|tage/.test(ql)){
+      if (pulled){ a = 'Sarah möchte 45 statt 30 Tage. Das kostet uns rund 700 € im Jahr. Der Angebotsagent schlägt 0,3 % höhere Preise vor.' + (payDone ? ' Lena hat Sarah schon geantwortet.' : ' Beantwortet ist es noch nicht.'); j = 'b-pay'; }
+      else a = BOUNDARY;
+    } else if (/offen|fehlt/.test(ql)){
+      if (!pulled) a = 'Im Hinterzimmer ist nichts offen. Was im Kundenkanal steht, sehe ich erst, wenn ihr es reinholt.';
+      else if (payDone) a = 'Nichts mehr. Das Zahlungsziel hat Lena beantwortet.';
+      else { a = 'Offen ist das Zahlungsziel von 45 Tagen. Die Rechnung dazu liegt vor, die Antwort an Sarah fehlt noch.'; j = 'b-pay'; }
+    } else if (/sarah|kunde|hollmann/.test(ql)){
+      a = 'Aus dem Kundenkanal kenne ich nur, was ihr reingeholt habt: Sarah will ab Januar 40 Ladungen im Monat, mit Erfurt, Angebot bis Freitag.' + (pulled ? ' Außerdem fragt sie nach 45 Tagen Zahlungsziel.' : ' Alles andere im Kundenkanal lese ich nicht mit.');
+      j = 'b-pull1';
+    } else if (/erfurt|schaff|kapazit|lkw/.test(ql)){
+      a = 'Ja, mit Hilfe. Unsere LKW schaffen im Januar 4 von 8 Ladungen, Tom hat zwei Frächter aus dem Frachtpool für dienstags und donnerstags. Er bestätigt beide bis Donnerstag.'; j = 'b-tom';
+    } else if (/preis|gerechnet|angebot|kosten/.test(ql)){
+      a = 'Preise 2026 plus 3 %, wie Lena es wollte. Erfurt ist neu: rund 330 km einfach, unser Standardsatz pro Kilometer und 8 % Aufschlag für die Ladungen beim Subunternehmer.'; j = 'b-agent';
+    } else {
+      a = 'In dieser Demo kenne ich nur das Hinterzimmer von Hollmann Bau. Frag nach dem Preis, nach Erfurt oder was offen ist.';
+    }
+    const box = $('#answer');
+    box.innerHTML = '<p class="q">' + esc(q) + '</p><p>' + esc(a) + '</p>' + (j ? '<button class="link-btn" type="button" data-jump="' + j + '">Quelle zeigen</button>' : '');
+    box.classList.add('show');
+  }
+  $('#askForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const q = $('#askInput').value.trim();
+    if (q) ask(q);
+  });
+  $$('.suggest button').forEach(b => b.addEventListener('click', () => { $('#askInput').value = b.dataset.q; ask(b.dataset.q); }));
+  $('#globalAsk').addEventListener('submit', e => {
+    e.preventDefault();
+    const q = $('#globalInput').value.trim();
+    if (!q) return;
+    setTab('mem'); $('#askInput').value = q; ask(q); openBack();
+  });
+
+  /* ---------- guest preview ---------- */
+  let stash = null;
+  function setGuest(on){
+    document.body.classList.toggle('guest', on);
+    closeDrawers();
+    if (on){
+      stash = {v: input.value, a: !attach.hidden};
+      input.value = ''; attach.hidden = true;
+      input.placeholder = 'Nachricht an Kessler Logistik';
+      $('#exitGuest').focus();
+    } else {
+      input.value = stash ? stash.v : '';
+      attach.hidden = !(stash && stash.a);
+      input.placeholder = 'Nachricht an Hollmann Bau';
+      $('#guestBtn').focus();
+    }
+    grow(input);
+  }
+  $('#guestBtn').addEventListener('click', () => setGuest(true));
+  $('#exitGuest').addEventListener('click', () => setGuest(false));
+})();
+</script>
+</body>
+</html>

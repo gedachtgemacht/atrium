@@ -30,16 +30,64 @@ from .models import (
 from .security import hash_password, hash_token, new_token
 
 PEOPLE = [
-    # first, last, role, tone, admin
-    ("Lena", "Kraft", "Sales", "#CFE0F0", True),
-    ("Tom", "Becker", "Dispatch", "#D3E4C8", False),
-    ("Aylin", "Demir", "Dispatch", "#EBD2DD", False),
-    ("Jonas", "Wirth", "Dispatch", "#E4DCC6", False),
-    ("Mia", "Schulz", "Sales", "#CFE2E2", False),
-    ("Kai", "Brenner", "Warehouse", "#E7D8BF", False),
-    ("Sven", "Albers", "Warehouse", "#D8D4EC", False),
-    ("Ole", "Martens", "Accounting", "#DCE3EC", False),
+    # first, last, role key, tone, admin
+    ("Lena", "Kraft", "sales", "#CFE0F0", True),
+    ("Tom", "Becker", "dispatch", "#D3E4C8", False),
+    ("Aylin", "Demir", "dispatch", "#EBD2DD", False),
+    ("Jonas", "Wirth", "dispatch", "#E4DCC6", False),
+    ("Mia", "Schulz", "sales", "#CFE2E2", False),
+    ("Kai", "Brenner", "warehouse", "#E7D8BF", False),
+    ("Sven", "Albers", "warehouse", "#D8D4EC", False),
+    ("Ole", "Martens", "accounting", "#DCE3EC", False),
 ]
+
+# Demo texts. The German ones follow docs/mockup.html.
+DEMO = {
+    "en": {
+        "roles": {"sales": "Sales", "dispatch": "Dispatch", "warehouse": "Warehouse", "accounting": "Accounting"},
+        "channels": {
+            "dispatch": ("dispatch", "Tours, trucks and carriers"),
+            "warehouse": ("warehouse", "Warehouse and loading"),
+            "sales": ("sales", "Customers and quotes"),
+            "news": ("announcements", "News for everybody"),
+        },
+        "shared_description": "Customer channel with Hollmann Bau GmbH. Sarah and Jan are here by link, without an account.",
+        "backroom": "Backroom Hollmann Bau",
+        "floor": "Dortmund office",
+        "rooms": {"dispatch": "Dispatch", "sales": "Sales corner", "warehouse": "Warehouse office", "quiet": "Quiet room", "hallway": "Hallway"},
+        "messages": [
+            ("hollmann", "09:12", "Sarah", "Good morning! For 2027 we'd like 40 loads a month from January. Same routes as this year, plus our new site in Erfurt. Can you get us a quote by Friday?"),
+            ("hollmann", "09:24", "Lena", "Hi Sarah, thanks! We'll work it out, the quote comes by Friday."),
+            ("hollmann", "10:02", "Sarah", "One more thing: would 45 day payment terms work too?"),
+            ("dispatch", "08:40", "Tom", "Tomorrow's tours are up. Two trucks short on Thursday, I'm asking the pool."),
+            ("dispatch", "08:52", "Aylin", "I can take the Hamm tour on Thursday."),
+            ("warehouse", "07:55", "Kai", "Gate 3 is free again."),
+            ("news", "08:00", "Ole", "The new loading schedule applies from Monday."),
+        ],
+    },
+    "de": {
+        "roles": {"sales": "Vertrieb", "dispatch": "Dispo", "warehouse": "Lager", "accounting": "Buchhaltung"},
+        "channels": {
+            "dispatch": ("dispo", "Touren, LKW und Frächter"),
+            "warehouse": ("lager", "Lager und Verladung"),
+            "sales": ("vertrieb", "Kunden und Angebote"),
+            "news": ("ankündigungen", "Neuigkeiten für alle"),
+        },
+        "shared_description": "Kundenkanal mit Hollmann Bau GmbH. Sarah und Jan sind per Link dabei, ohne Konto.",
+        "backroom": "Hinterzimmer Hollmann Bau",
+        "floor": "Büro Dortmund",
+        "rooms": {"dispatch": "Dispo", "sales": "Vertriebsecke", "warehouse": "Lagerbüro", "quiet": "Ruheraum", "hallway": "Flur"},
+        "messages": [
+            ("hollmann", "09:12", "Sarah", "Guten Morgen! Für 2027 hätten wir gern 40 Ladungen im Monat ab Januar. Gleiche Strecken wie dieses Jahr, plus unser neuer Standort in Erfurt. Schafft ihr ein Angebot bis Freitag?"),
+            ("hollmann", "09:24", "Lena", "Hallo Sarah, danke dir! Wir rechnen das durch, das Angebot kommt bis Freitag."),
+            ("hollmann", "10:02", "Sarah", "Noch was: Ginge auch ein Zahlungsziel von 45 Tagen?"),
+            ("dispatch", "08:40", "Tom", "Die Touren für morgen stehen. Donnerstag fehlen zwei LKW, ich frage im Frachtpool."),
+            ("dispatch", "08:52", "Aylin", "Ich kann am Donnerstag die Tour nach Hamm fahren."),
+            ("warehouse", "07:55", "Kai", "Tor 3 ist wieder frei."),
+            ("news", "08:00", "Ole", "Ab Montag gilt der neue Verladeplan."),
+        ],
+    },
+}
 
 
 def migrate() -> None:
@@ -59,7 +107,9 @@ def at(day: datetime, hhmm: str) -> datetime:
     return day.replace(hour=int(h), minute=int(m), second=0, microsecond=0)
 
 
-async def seed(db: Database, *, password: str, base_url: str, reset: bool = False, use_alembic: bool = True) -> dict:
+async def seed(db: Database, *, password: str, base_url: str, reset: bool = False, use_alembic: bool = True,
+               language: str = "en") -> dict:
+    T = DEMO[language if language in DEMO else "en"]
     if reset:
         async with db.engine.begin() as conn:
             await conn.run_sync(Base.metadata.drop_all)
@@ -72,14 +122,14 @@ async def seed(db: Database, *, password: str, base_url: str, reset: bool = Fals
     async with db.sessions() as s:
         if (await s.execute(select(Organization))).first():
             return {}
-        org = Organization(name="Kessler Logistik", server_location="Frankfurt", retention={})
+        org = Organization(name="Kessler Logistik", server_location="Frankfurt", retention={}, language=language if language in DEMO else "en")
         s.add(org)
         await s.flush()
 
         users: dict[str, User] = {}
         for first, last, role, tone, admin in PEOPLE:
             u = User(org_id=org.id, email=f"{first.lower()}@kessler.example", password_hash=hash_password(password),
-                     name=f"{first} {last}", initials=(first[0] + last[0]).upper(), tone=tone, role_label=role, is_admin=admin)
+                     name=f"{first} {last}", initials=(first[0] + last[0]).upper(), tone=tone, role_label=T["roles"][role], is_admin=admin)
             s.add(u)
             users[first] = u
         await s.flush()
@@ -90,14 +140,14 @@ async def seed(db: Database, *, password: str, base_url: str, reset: bool = Fals
             return ch
 
         everyone = list(users)
-        dispatch = channel("dispatch", description="Tours, trucks and carriers")
-        warehouse = channel("warehouse", description="Warehouse and loading")
-        sales = channel("sales", description="Customers and quotes")
-        news = channel("announcements", description="News for everybody")
-        hollmann = channel("Hollmann Bau", ChannelKind.shared, partner_name="Hollmann Bau",
-                           description="Customer channel with Hollmann Bau GmbH. Sarah and Jan are here by link, without an account.")
+        C = T["channels"]
+        dispatch = channel(C["dispatch"][0], description=C["dispatch"][1])
+        warehouse = channel(C["warehouse"][0], description=C["warehouse"][1])
+        sales = channel(C["sales"][0], description=C["sales"][1])
+        news = channel(C["news"][0], description=C["news"][1])
+        hollmann = channel("Hollmann Bau", ChannelKind.shared, partner_name="Hollmann Bau", description=T["shared_description"])
         await s.flush()
-        backroom = channel("Backroom Hollmann Bau", ChannelKind.backroom, partner_name="Hollmann Bau", backroom_for_id=hollmann.id)
+        backroom = channel(T["backroom"], ChannelKind.backroom, partner_name="Hollmann Bau", backroom_for_id=hollmann.id)
         await s.flush()
         membership = {
             dispatch: ["Tom", "Aylin", "Jonas", "Lena"],
@@ -110,13 +160,14 @@ async def seed(db: Database, *, password: str, base_url: str, reset: bool = Fals
             for n in names:
                 s.add(ChannelMember(channel_id=ch.id, user_id=users[n].id))
 
-        org.floors = [{"id": "main", "name": "Dortmund office", "columns": 2}]
+        org.floors = [{"id": "main", "name": T["floor"], "columns": 2}]
+        R = T["rooms"]
         for name, kind, (col, row, cs), ch in [
-            ("Dispatch", RoomKind.normal, (0, 0, 2), dispatch),
-            ("Sales corner", RoomKind.normal, (0, 1, 1), sales),
-            ("Warehouse office", RoomKind.normal, (1, 1, 1), warehouse),
-            ("Quiet room", RoomKind.quiet, (0, 2, 1), None),
-            ("Hallway", RoomKind.hallway, (1, 2, 1), None),
+            (R["dispatch"], RoomKind.normal, (0, 0, 2), dispatch),
+            (R["sales"], RoomKind.normal, (0, 1, 1), sales),
+            (R["warehouse"], RoomKind.normal, (1, 1, 1), warehouse),
+            (R["quiet"], RoomKind.quiet, (0, 2, 1), None),
+            (R["hallway"], RoomKind.hallway, (1, 2, 1), None),
         ]:
             s.add(Room(org_id=org.id, name=name, kind=kind, floor_id="main", col=col, row=row, col_span=cs,
                        channel_id=ch.id if ch else None))
@@ -143,13 +194,12 @@ async def seed(db: Database, *, password: str, base_url: str, reset: bool = Fals
                 m.author_kind, m.author_guest_id = AuthorKind.guest, guests[guest].id
             s.add(m)
 
-        msg(hollmann, "09:12", "Good morning! For 2027 we'd like 40 loads a month from January. Same routes as this year, plus our new site in Erfurt. Can you get us a quote by Friday?", guest="Sarah")
-        msg(hollmann, "09:24", "Hi Sarah, thanks! We'll work it out, the quote comes by Friday.", user="Lena")
-        msg(hollmann, "10:02", "One more thing: would 45 day payment terms work too?", guest="Sarah")
-        msg(dispatch, "08:40", "Tomorrow's tours are up. Two trucks short on Thursday, I'm asking the pool.", user="Tom")
-        msg(dispatch, "08:52", "I can take the Hamm tour on Thursday.", user="Aylin")
-        msg(warehouse, "07:55", "Gate 3 is free again.", user="Kai")
-        msg(news, "08:00", "The new loading schedule applies from Monday.", user="Ole")
+        where = {"hollmann": hollmann, "dispatch": dispatch, "warehouse": warehouse, "news": news, "sales": sales}
+        for ch, when, who, body in T["messages"]:
+            if who in guests:
+                msg(where[ch], when, body, guest=who)
+            else:
+                msg(where[ch], when, body, user=who)
         await s.commit()
         return {"password": password, "emails": [u.email for u in users.values()], "links": links}
 
@@ -158,6 +208,7 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--reset", action="store_true")
     ap.add_argument("--json", help="also write the result (password, emails, guest links) to this file")
+    ap.add_argument("--language", default="en", choices=sorted(DEMO), help="language of the demo company and its messages")
     args = ap.parse_args()
     settings = get_settings()
     password = os.environ.get("ATRIUM_SEED_PASSWORD", "atrium-demo")
@@ -165,7 +216,7 @@ def main() -> None:
     async def run():
         db = Database(settings.database_url)
         try:
-            out = await seed(db, password=password, base_url=settings.base_url, reset=args.reset)
+            out = await seed(db, password=password, base_url=settings.base_url, reset=args.reset, language=args.language)
         finally:
             await db.dispose()
         if not out:

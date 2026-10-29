@@ -1,4 +1,4 @@
-import type { RemoteTrack, Room } from 'livekit-client'
+import type { RemoteParticipant, RemoteTrack, Room } from 'livekit-client'
 
 /** Voice in rooms over the self hosted LiveKit server, plus the microphone feed for room notes. */
 class Voice {
@@ -8,28 +8,43 @@ class Voice {
   error = $state('')
   muted = $state(false)
   #notes: { ctx: AudioContext; stream: MediaStream; node: AudioWorkletNode } | null = null
-  #elements: HTMLMediaElement[] = []
+  #elements = new Map<string, HTMLMediaElement[]>()
+  #generation = 0
 
   async join(url: string, token: string) {
-    await this.leave()
+    const gen = ++this.#generation
+    await this.#disconnect()
+    if (gen !== this.#generation) return
     this.error = ''
     // Loaded only when someone actually joins a room with voice.
     const { Room, RoomEvent, Track } = await import('livekit-client')
     const room = new Room({ adaptiveStream: true, dynacast: true })
     this.room = room
     room.on(RoomEvent.ActiveSpeakersChanged, (s) => (this.speaking = s.map((p) => p.identity)))
-    room.on(RoomEvent.TrackSubscribed, (track: RemoteTrack) => {
-      if (track.kind === Track.Kind.Audio) {
-        const el = track.attach()
-        el.hidden = true
-        document.body.appendChild(el)
-        this.#elements.push(el)
-      }
+    room.on(RoomEvent.TrackSubscribed, (track: RemoteTrack, _pub, p: RemoteParticipant) => {
+      if (track.kind !== Track.Kind.Audio) return
+      const el = track.attach()
+      el.hidden = true
+      document.body.appendChild(el)
+      this.#elements.set(p.identity, [...(this.#elements.get(p.identity) ?? []), el])
     })
-    room.on(RoomEvent.TrackUnsubscribed, (track: RemoteTrack) => track.detach().forEach((el) => el.remove()))
+    room.on(RoomEvent.TrackUnsubscribed, (track: RemoteTrack, _pub, p: RemoteParticipant) => {
+      const gone = track.detach()
+      gone.forEach((el) => el.remove())
+      this.#elements.set(p.identity, (this.#elements.get(p.identity) ?? []).filter((el) => !gone.includes(el)))
+    })
+    // Someone left the room: LiveKit doesn't always unsubscribe their tracks first, so drop their audio here.
+    room.on(RoomEvent.ParticipantDisconnected, (p: RemoteParticipant) => {
+      ;(this.#elements.get(p.identity) ?? []).forEach((el) => el.remove())
+      this.#elements.delete(p.identity)
+    })
     room.on(RoomEvent.Disconnected, () => (this.connected = false))
     try {
       await room.connect(url, token)
+      if (gen !== this.#generation) {
+        await room.disconnect()
+        return
+      }
       this.connected = true
       await room.localParticipant.setMicrophoneEnabled(!this.muted)
     } catch (e) {
@@ -46,13 +61,18 @@ class Voice {
   }
 
   async leave() {
+    this.#generation++
+    await this.#disconnect()
+  }
+
+  async #disconnect() {
     this.speaking = []
     this.connected = false
     const r = this.room
     this.room = null
     if (r) await r.disconnect()
-    this.#elements.forEach((el) => el.remove())
-    this.#elements = []
+    this.#elements.forEach((els) => els.forEach((el) => el.remove()))
+    this.#elements.clear()
   }
 
   /** While notes are on in your room, your own browser sends your own microphone, nothing else. */

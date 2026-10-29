@@ -62,6 +62,7 @@ class MessageOut(Out):
     author: AuthorOut
     body: str
     created_at: datetime
+    edited_at: datetime | None = None
     attachments: list[AttachmentOut] = []
     # On a customer message in the shared channel: who pulled it in.
     pulled: PullInfo | None = None

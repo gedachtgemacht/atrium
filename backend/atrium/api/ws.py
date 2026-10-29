@@ -117,11 +117,19 @@ async def handle(state, conn: Connection, user, data: dict) -> None:
         if data.get("on"):
             if not room.notes_by_id:
                 room.notes_by_id, room.notes_by_name = actor.user_id, actor.name
-                state.notes.start(room.id, actor.name)
+                state.notes.start(room.id, actor.name, await colleague_names(state, actor.org_id))
         elif room.notes_by_id:
             room.notes_by_id, room.notes_by_name = None, ""
             state.tasks.spawn(state.notes.stop(room.id), name="notes:stop")
         await broadcast_presence(state)
+
+
+async def colleague_names(state, org_id) -> list[str]:
+    from ..models import User
+
+    async with state.db.sessions() as session:
+        rows = await session.execute(select(User.name).where(User.org_id == org_id, User.is_active.is_(True)).limit(200))
+        return list(rows.scalars())
 
 
 async def load_rooms(state) -> None:

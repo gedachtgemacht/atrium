@@ -15,7 +15,7 @@ License: AGPL-3.0-or-later.
 
 ## Run it on a server
 
-Needs Docker with Compose (or Podman with podman-compose), a domain pointing to the server, and ports 80, 443, 7881/tcp and 50000–50100/udp open.
+Needs Docker with Compose (or Podman with podman-compose), a domain pointing to the server, and ports 80, 443, 7881/tcp and 50000–50100/udp open. Behind another proxy, set `HTTP_PORT`/`HTTPS_PORT` and `ATRIUM_PUBLIC_URL`.
 
 ```sh
 git clone <this repo> atrium && cd atrium
@@ -87,6 +87,7 @@ Tests:
 ```sh
 cd backend && uv run pytest            # unit, flow and wall tests
 cd frontend && npx playwright test     # end to end in real browsers
+E2E_LIVEKIT_URL=ws://localhost:7880 npx playwright test e2e/voice.spec.ts   # three browsers talking, needs the LiveKit dev server
 cd frontend && npm run check           # types
 ```
 

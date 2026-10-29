@@ -297,3 +297,37 @@ def test_room_notes_summary_lands_in_room_channel(client, lena, llm):
     last = msgs[-1]
     assert last["author"]["kind"] == "agent"
     assert last["body"].startswith("Notes from Dispatch, switched on by Lena Kraft")
+
+
+def test_edit_and_delete_own_messages(client, lena, sarah):
+    shared = channels(lena)["Hollmann Bau"]
+    mine = lena.post(f"/api/channels/{shared['id']}/messages", json={"body": "Typo hree"}).json()
+    with sarah.ws("/g/ws") as ws:
+        edited = lena.patch(f"/api/messages/{mine['id']}", json={"body": "Typo here"}).json()
+        assert edited["body"] == "Typo here" and edited["edited_at"]
+        e = ws.receive_json()
+        assert e["type"] == "message.updated" and e["message"]["body"] == "Typo here" and e["message"]["edited_at"]
+        assert lena.delete(f"/api/messages/{mine['id']}").status_code == 200
+        e = ws.receive_json()
+        assert e == {"type": "message.deleted", "message": None, "message_id": mine["id"], "members": None}
+    # Not someone else's
+    first = lena.get(f"/api/channels/{shared['id']}/messages").json()[0]
+    assert lena.patch(f"/api/messages/{first['id']}", json={"body": "x"}).status_code == 403
+    assert lena.delete(f"/api/messages/{first['id']}").status_code == 403
+    assert sarah.patch(f"/g/api/messages/{first['id']}", json={"body": "Changed by Sarah"}).status_code == 200
+
+
+def test_guest_deleting_takes_the_backroom_copy_along(client, lena, sarah):
+    shared = channels(lena)["Hollmann Bau"]
+    m = sarah.post("/g/api/messages", json={"body": "Please forget this"}).json()
+    copy = lena.post(f"/api/messages/{m['id']}/pull").json()
+    assert sarah.delete(f"/g/api/messages/{m['id']}").json() == {"ok": True}
+    back = lena.get(f"/api/channels/{shared['backroom_id']}/messages").json()
+    assert all(x["id"] != copy["id"] for x in back)
+    assert "message.deleted" in audit_actions(client)
+
+
+def test_backroom_copy_cannot_be_edited_and_agent_messages_can_be_removed(client, lena):
+    shared, request, copy, work = setup_quote(client, lena)
+    assert lena.patch(f"/api/messages/{copy['id']}", json={"body": "rewritten"}).status_code == 403
+    assert lena.delete(f"/api/messages/{work['message_id']}").status_code == 200

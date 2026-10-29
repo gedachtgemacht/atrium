@@ -77,7 +77,7 @@ async def messages_out(
         out.append(
             MessageOut(
                 id=m.id, channel_id=m.channel_id, author=author_of(m, partner_name), body=m.body,
-                created_at=m.created_at, attachments=[attachment_out(a) for a in m.attachments],
+                created_at=m.created_at, edited_at=m.edited_at, attachments=[attachment_out(a) for a in m.attachments],
                 pulled=info if p is not None and p.original_id == m.id else None,
                 pulled_from=info if p is not None and p.copy_id == m.id else None,
                 from_draft=m.from_draft_id is not None,

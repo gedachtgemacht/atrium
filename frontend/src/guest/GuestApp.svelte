@@ -8,7 +8,7 @@
 
   type Author = { kind: 'guest' | 'staff'; id: string; name: string; initials: string }
   type File = { id: string; filename: string; mime: string; size: number; url: string }
-  type Msg = { id: string; author: Author; body: string; created_at: string; attachments: File[] }
+  type Msg = { id: string; author: Author; body: string; created_at: string; edited_at: string | null; attachments: File[] }
   type Chan = { company_name: string; partner_name: string; notice: string; members: Author[] }
   type Me = { id: string; name: string; company: string; preview: boolean }
 
@@ -30,6 +30,9 @@
   let feed: HTMLElement | undefined = $state()
   let input: HTMLTextAreaElement | undefined = $state()
   let fileInput: HTMLInputElement | undefined = $state()
+  let editing = $state<string | null>(null)
+  let editText = $state('')
+  let confirmDelete = $state<string | null>(null)
 
   onMount(async () => {
     try {
@@ -81,6 +84,11 @@
         messages.push(e.message)
         await tick()
         feed?.scrollTo({ top: feed.scrollHeight, behavior: 'smooth' })
+      } else if (e.type === 'message.updated') {
+        const i = messages.findIndex((m) => m.id === e.message.id)
+        if (i >= 0) messages[i] = e.message
+      } else if (e.type === 'message.deleted') {
+        messages = messages.filter((m) => m.id !== e.message_id)
       } else if (e.type === 'members.updated' && chan) {
         chan.members = e.members
       }
@@ -131,6 +139,29 @@
     } finally {
       sending = false
     }
+  }
+
+  async function saveEdit(m: Msg, e: SubmitEvent) {
+    e.preventDefault()
+    try {
+      const updated = await api<Msg>(`/g/api/messages/${m.id}`, { method: 'PATCH', body: { body: editText } })
+      const i = messages.findIndex((x) => x.id === m.id)
+      if (i >= 0) messages[i] = updated
+      editing = null
+    } catch (err) {
+      error = (err as Error).message
+    }
+  }
+
+  async function remove(m: Msg) {
+    if (confirmDelete !== m.id) {
+      confirmDelete = m.id
+      setTimeout(() => confirmDelete === m.id && (confirmDelete = null), 4000)
+      return
+    }
+    confirmDelete = null
+    await api(`/g/api/messages/${m.id}`, { method: 'DELETE' })
+    messages = messages.filter((x) => x.id !== m.id)
   }
 
   function newDay(i: number) {
@@ -186,8 +217,22 @@
                 <span class="name">{m.author.name}</span>
                 <span class="tag" class:guest={m.author.kind === 'guest'}>{tag(m.author)}</span>
                 <span class="time">{time(m.created_at)}</span>
+                {#if m.edited_at}<span class="edited">edited</span>{/if}
+                {#if m.author.id === me.id && !me.preview && editing !== m.id}
+                  <span class="msg-tools">
+                    <button onclick={() => { editing = m.id; editText = m.body; confirmDelete = null }}>Edit</button>
+                    <button class:danger={confirmDelete === m.id} onclick={() => remove(m)}>{confirmDelete === m.id ? 'Really delete?' : 'Delete'}</button>
+                  </span>
+                {/if}
               </div>
-              {#if m.body}<p class="body">{m.body}</p>{/if}
+              {#if editing === m.id}
+                <form class="edit-box" onsubmit={(e) => saveEdit(m, e)}>
+                  <label class="sr" for="edit-{m.id}">Edit message</label>
+                  <textarea id="edit-{m.id}" bind:value={editText}
+                    onkeydown={(e) => { if (e.key === 'Escape') editing = null; if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); (e.currentTarget as HTMLTextAreaElement).form?.requestSubmit() } }}></textarea>
+                  <div class="row"><button class="btn small primary">Save</button><button type="button" class="btn small" onclick={() => (editing = null)}>Cancel</button></div>
+                </form>
+              {:else if m.body}<p class="body">{m.body}</p>{/if}
               {#each m.attachments as f (f.id)}
                 <a class="doc" href={previewToken ? undefined : f.url} target="_blank" rel="noopener">{@html icons.doc()}<div><strong>{f.filename}</strong><small>{size(f.size)}</small></div></a>
               {/each}

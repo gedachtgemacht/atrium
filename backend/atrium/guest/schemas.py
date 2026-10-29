@@ -36,6 +36,7 @@ class GuestMessage(GuestModel):
     author: GuestAuthor
     body: str
     created_at: datetime
+    edited_at: datetime | None = None
     attachments: list[GuestFile]
 
 
@@ -60,6 +61,11 @@ class GuestJoinInfo(GuestModel):
 
 
 class GuestEvent(GuestModel):
-    type: Literal["message.created", "members.updated"]
+    type: Literal["message.created", "message.updated", "message.deleted", "members.updated"]
     message: GuestMessage | None = None
+    message_id: uuid.UUID | None = None
     members: list[GuestAuthor] | None = None
+
+
+class GuestOk(GuestModel):
+    ok: bool

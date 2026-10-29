@@ -27,7 +27,7 @@ from ..models import (
     WorkStatus,
 )
 from .audit import audit
-from .events import publish_message, to_readers, to_user
+from .events import publish_deleted, publish_message, to_readers, to_user
 
 MENTION = re.compile(r"(?<![\w@])@([A-Za-z][\w-]{1,59})")
 MAX_BODY = 20000
@@ -344,3 +344,66 @@ async def update_quote_rates(state, session, actor: UserActor, work_id, rates: l
 
 async def user_row(session: AsyncSession, user_id: uuid.UUID) -> User | None:
     return await session.get(User, user_id)
+
+
+# ---------------------------------------------------------------- edit and delete
+
+
+def _is_author(actor: Actor, msg: Message) -> bool:
+    if isinstance(actor, UserActor):
+        return msg.author_user_id == actor.user_id and msg.pulled_from_id is None
+    if isinstance(actor, GuestActor):
+        return msg.author_guest_id == actor.guest_id and msg.pulled_from_id is None and not actor.read_only
+    return False
+
+
+async def edit_message(state, session: AsyncSession, actor: Actor, message_id: uuid.UUID, body: str) -> Message:
+    """People and guests edit their own messages. Backroom copies keep what was pulled in."""
+    msg = await policy.get_message(session, actor, message_id)
+    if not _is_author(actor, msg):
+        raise policy.forbidden("You can only edit your own messages")
+    body = (body or "").strip()
+    if not body and not msg.attachments:
+        raise HTTPException(400, "Message is empty")
+    if len(body) > MAX_BODY:
+        raise HTTPException(400, "Message is too long")
+    if body == msg.body:
+        return msg
+    msg.body = body
+    msg.edited_at = utcnow()
+    channel = await policy.get_channel(session, actor, msg.channel_id)
+    audit(session, channel.org_id, actor, "message.edited", subject_id=msg.id, channel_id=channel.id)
+    await session.commit()
+    await publish_message(state, session, channel, msg, event="message.updated", to_guests=True)
+    return msg
+
+
+async def delete_message(state, session: AsyncSession, actor: Actor, message_id: uuid.UUID) -> None:
+    """Own messages; people may also remove agent messages in internal channels.
+
+    When a guest deletes a message, its backroom copy goes too: the customer withdrew it.
+    """
+    msg = await policy.get_message(session, actor, message_id)
+    channel = await policy.get_channel(session, actor, msg.channel_id)
+    agent_cleanup = isinstance(actor, UserActor) and msg.author_agent_id is not None and channel.kind != ChannelKind.shared
+    if not (_is_author(actor, msg) or agent_cleanup):
+        raise policy.forbidden("You can only delete your own messages")
+    sys = SystemActor(channel.org_id)
+    removed: list[tuple[Channel, uuid.UUID]] = [(channel, msg.id)]
+    if isinstance(actor, GuestActor):
+        pull = await policy.existing_pull(session, msg.id)
+        if pull is not None:
+            copy = await policy.get_message(session, sys, pull.copy_id)
+            backroom = await policy.get_channel(session, sys, copy.channel_id)
+            for a in list(copy.attachments):
+                await delete_attachment(state, session, a)
+            await session.delete(copy)
+            removed.append((backroom, copy.id))
+    for a in list(msg.attachments):
+        await delete_attachment(state, session, a)
+    await session.delete(msg)
+    audit(session, channel.org_id, actor, "message.deleted", subject_id=message_id, channel_id=channel.id,
+          with_backroom_copy=len(removed) > 1)
+    await session.commit()
+    for ch, mid in removed:
+        await publish_deleted(state, session, ch, mid)

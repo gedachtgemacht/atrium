@@ -22,14 +22,14 @@ MAX_BUFFER_SECONDS = 30
 
 
 class Transcriber:
-    async def transcribe(self, pcm16: bytes) -> str:
+    async def transcribe(self, pcm16: bytes, hint: str = "") -> str:
         raise NotImplementedError
 
 
 class FakeTranscriber(Transcriber):
     """Tests: the "audio" is UTF-8 text."""
 
-    async def transcribe(self, pcm16: bytes) -> str:
+    async def transcribe(self, pcm16: bytes, hint: str = "") -> str:
         return pcm16.decode("utf-8", errors="ignore")
 
 
@@ -47,16 +47,16 @@ class WhisperTranscriber(Transcriber):
             self._model = WhisperModel(self._name, device="cpu", compute_type="int8")
         return self._model
 
-    def _run(self, pcm16: bytes) -> str:
+    def _run(self, pcm16: bytes, hint: str) -> str:
         import numpy as np
 
         audio = np.frombuffer(pcm16, dtype=np.int16).astype(np.float32) / 32768.0
-        segments, _ = self._load().transcribe(audio, language=self._language, vad_filter=True)
+        segments, _ = self._load().transcribe(audio, language=self._language, vad_filter=True, initial_prompt=hint or None)
         return " ".join(s.text.strip() for s in segments).strip()
 
-    async def transcribe(self, pcm16: bytes) -> str:
+    async def transcribe(self, pcm16: bytes, hint: str = "") -> str:
         async with self._lock:
-            return await asyncio.to_thread(self._run, pcm16)
+            return await asyncio.to_thread(self._run, pcm16, hint)
 
 
 @dataclass
@@ -67,6 +67,7 @@ class Session:
     names: dict[uuid.UUID, str] = field(default_factory=dict)
     lines: list[str] = field(default_factory=list)
     pending: set = field(default_factory=set)
+    vocabulary: list[str] = field(default_factory=list)
 
 
 class NotesService:
@@ -78,8 +79,8 @@ class NotesService:
     def active(self, room_id: uuid.UUID) -> bool:
         return room_id in self.sessions
 
-    def start(self, room_id: uuid.UUID, by_name: str) -> None:
-        self.sessions.setdefault(room_id, Session(room_id=room_id, started_by=by_name))
+    def start(self, room_id: uuid.UUID, by_name: str, vocabulary: list[str] | None = None) -> None:
+        self.sessions.setdefault(room_id, Session(room_id=room_id, started_by=by_name, vocabulary=vocabulary or []))
 
     def feed(self, room_id: uuid.UUID, user_id: uuid.UUID, name: str, chunk: bytes) -> None:
         s = self.sessions.get(room_id)
@@ -104,10 +105,12 @@ class NotesService:
         if not data:
             return
         name = s.names.get(user_id, "Someone")
+        # Colleagues' names help whisper spell them right.
+        hint = "Names: " + ", ".join(dict.fromkeys(list(s.names.values()) + s.vocabulary)) + "."
 
         async def work():
             try:
-                text = await self.transcriber.transcribe(data)
+                text = await self.transcriber.transcribe(data, hint)
             except Exception:
                 log.exception("transcription failed")
                 return
@@ -127,12 +130,14 @@ class NotesService:
         if s.pending:
             await asyncio.gather(*list(s.pending), return_exceptions=True)
         transcript = "\n".join(s.lines)
+        speakers = sorted(set(s.names.values()))
         s.lines.clear()
         if transcript.strip():
-            await summarize(self.state, room_id, s.started_by, transcript)
+            await summarize(self.state, room_id, s.started_by, transcript, speakers, s.vocabulary)
 
 
-async def summarize(state, room_id: uuid.UUID, started_by: str, transcript: str) -> None:
+async def summarize(state, room_id: uuid.UUID, started_by: str, transcript: str, speakers: list[str] | None = None,
+                    vocabulary: list[str] | None = None) -> None:
     from .. import policy
     from ..agents.runner import _finish, _start_run, actor_for, env_for, loop, system_prompt
     from ..llm.base import ProviderError
@@ -152,6 +157,10 @@ async def summarize(state, room_id: uuid.UUID, started_by: str, transcript: str)
         channel = await policy.get_channel(session, actor, room.channel_id)
         run = await _start_run(session, actor, channel.id, "notes", room.id, None)
         builder = ContextBuilder(session, actor, "notes").system(system_prompt(cfg, org))
+        if speakers:
+            builder.add_text("People who spoke:", ", ".join(speakers))
+        if vocabulary:
+            builder.add_text("Colleagues (for spelling names):", ", ".join(vocabulary))
         builder.add_text(f"Transcript from the room {room.name}:", transcript)
         ctx = builder.build()
         env = env_for(state, session, actor, channel, org, builder.labels, run.id)

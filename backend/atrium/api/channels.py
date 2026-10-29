@@ -183,6 +183,26 @@ async def mark_read(channel_id: uuid.UUID, actor: UserActor = Depends(current_us
     return {"ok": True}
 
 
+class EditIn(BaseModel):
+    body: str
+
+
+@router.patch("/messages/{message_id}", response_model=MessageOut)
+async def edit(message_id: uuid.UUID, body: EditIn, actor: UserActor = Depends(current_user),
+               session: AsyncSession = Depends(get_session), state: AppState = Depends(get_state)):
+    msg = await svc.edit_message(state, session, actor, message_id, body.body)
+    msg = await policy.get_message(session, actor, msg.id)
+    [out] = await messages_out(session, actor, [msg], permissions=state.agent_permissions)
+    return out
+
+
+@router.delete("/messages/{message_id}")
+async def delete(message_id: uuid.UUID, actor: UserActor = Depends(current_user), session: AsyncSession = Depends(get_session),
+                 state: AppState = Depends(get_state)):
+    await svc.delete_message(state, session, actor, message_id)
+    return {"ok": True}
+
+
 class PullIn(BaseModel):
     note: str = ""
 

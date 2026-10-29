@@ -27,6 +27,6 @@ def guest_message(channel: Channel, m: Message) -> GuestMessage:
     if m.channel_id != channel.id:
         raise policy.WallViolation("message from another channel")
     return GuestMessage(
-        id=m.id, author=guest_author(m), body=m.body, created_at=m.created_at,
+        id=m.id, author=guest_author(m), body=m.body, created_at=m.created_at, edited_at=m.edited_at,
         attachments=[guest_file(a) for a in m.attachments],
     )

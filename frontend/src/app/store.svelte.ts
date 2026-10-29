@@ -35,6 +35,7 @@ class Store {
   globalQuestion = $state('')
 
   #ws: WebSocket | null = null
+  #outbox: unknown[] = []
   #retry = 0
   #toastTimer: ReturnType<typeof setTimeout> | undefined
 
@@ -143,6 +144,7 @@ class Store {
     ws.onopen = () => {
       this.connected = true
       this.#retry = 0
+      for (const m of this.#outbox.splice(0)) ws.send(JSON.stringify(m))
       // Catch up on whatever happened while we were away.
       for (const id of Object.keys(this.messages)) this.loadMessages(id)
       this.loadChannels()
@@ -163,7 +165,9 @@ class Store {
   }
 
   send(data: unknown) {
+    // Clicks that happen while the socket (re)connects go out as soon as it is open.
     if (this.#ws?.readyState === WebSocket.OPEN) this.#ws.send(JSON.stringify(data))
+    else this.#outbox.push(data)
   }
 
   sendAudio(chunk: ArrayBuffer) {
@@ -184,6 +188,11 @@ class Store {
       case 'message.updated':
         this.upsertMessage(e.message)
         break
+      case 'message.deleted': {
+        const list = this.messages[e.channel_id]
+        if (list) this.messages[e.channel_id] = list.filter((m) => m.id !== e.message_id)
+        break
+      }
       case 'work_result.updated':
         this.upsertWork(e.work_result)
         this.loadAgents()

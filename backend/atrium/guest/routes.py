@@ -19,7 +19,7 @@ from ..serialize import initials
 from ..services import messages as svc
 from ..services.audit import audit
 from ..state import AppState
-from .schemas import GuestAuthor, GuestChannel, GuestFile, GuestJoinInfo, GuestMe, GuestMessage
+from .schemas import GuestAuthor, GuestChannel, GuestFile, GuestJoinInfo, GuestMe, GuestMessage, GuestOk
 from .serialize import guest_file, guest_message
 
 router = APIRouter(prefix="/g/api", tags=["guest"])
@@ -146,6 +146,26 @@ async def post(body: GuestMessageIn, guest: GuestActor = Depends(current_guest),
     ch = await _channel(session, guest)
     msg = await svc.post_message(state, session, guest, ch, body.body, attachment_ids=body.attachment_ids)
     return guest_message(ch, await policy.get_message(session, guest, msg.id))
+
+
+class GuestEditIn(BaseModel):
+    body: str
+
+
+@router.patch("/messages/{message_id}", response_model=GuestMessage)
+async def edit(message_id: uuid.UUID, body: GuestEditIn, guest: GuestActor = Depends(current_guest),
+               session: AsyncSession = Depends(get_session), state: AppState = Depends(get_state)):
+    ch = await _channel(session, guest)
+    msg = await svc.edit_message(state, session, guest, message_id, body.body)
+    return guest_message(ch, await policy.get_message(session, guest, msg.id))
+
+
+@router.delete("/messages/{message_id}", response_model=GuestOk)
+async def delete(message_id: uuid.UUID, guest: GuestActor = Depends(current_guest), session: AsyncSession = Depends(get_session),
+                 state: AppState = Depends(get_state)):
+    await _channel(session, guest)
+    await svc.delete_message(state, session, guest, message_id)
+    return GuestOk(ok=True)
 
 
 @router.post("/files", response_model=GuestFile)

@@ -7,7 +7,7 @@ export interface WorkResult {
   sent_at: string | null; permission: string
 }
 export interface Message {
-  id: string; channel_id: string; author: Author; body: string; created_at: string; attachments: Attachment[]
+  id: string; channel_id: string; author: Author; body: string; created_at: string; edited_at: string | null; attachments: Attachment[]
   pulled: PullInfo | null; pulled_from: PullInfo | null; from_draft: boolean; memory_marks: { id: string; kind: string }[]
   work_results: WorkResult[]
 }

@@ -116,21 +116,21 @@ def quote_summary(data: dict) -> str:
 
 @tool(
     "create_quote",
-    "Create a quote as a work result in the backroom. Prices are calculated here from the ERP, dispatch and contract.",
+    "Create a quote as a work result in the backroom. Routes and volumes come from the customer's contract, "
+    "new sites get the remaining loads. Prices are calculated here from the ERP, dispatch and contract.",
     {
         "type": "object",
         "properties": {
-            "customer": {"type": "string"},
-            "year": {"type": "integer"},
-            "markup_pct": {"type": "number", "description": "Price increase on last year's prices, e.g. 3"},
-            "lines": {"type": "array", "items": {"type": "object", "properties": {
-                "origin": {"type": "string"}, "destination": {"type": "string"}, "loads": {"type": "integer"}},
-                "required": ["origin", "destination", "loads"]}},
+            "customer": {"type": "string", "description": "Customer company, e.g. Hollmann Bau"},
+            "year": {"type": "integer", "description": "Year the quote is for"},
+            "markup_pct": {"type": "number", "description": "Price increase on last year's prices in percent, e.g. 3"},
+            "loads_per_month": {"type": "integer", "description": "Total loads per month the customer asked for"},
+            "new_destinations": {"type": "array", "items": {"type": "string"}, "description": "New sites that are not in the contract yet, e.g. Erfurt"},
             "first_month": {"type": "string", "description": "YYYY-MM"},
             "answers": _labels,
             "greeting_name": {"type": "string", "description": "First name of the customer contact"},
         },
-        "required": ["customer", "year", "markup_pct", "lines", "answers"],
+        "required": ["customer", "year", "markup_pct", "loads_per_month", "answers"],
     },
 )
 async def create_quote(env: ToolEnv, args: dict):
@@ -139,13 +139,24 @@ async def create_quote(env: ToolEnv, args: dict):
     env.used.update({"erp", "contracts"})
     year = int(args.get("year") or env.today.year + 1)
     markup = float(args.get("markup_pct") or 0)
-    terms = env.contracts.terms(args.get("customer", ""))
-    sub_markup = terms.subcontractor_markup_pct if terms else 8.0
+    terms = env.contracts.terms(args.get("customer", "")) or env.contracts.terms(env.channel.partner_name or "")
+    if terms is None:
+        return {"error": "No contract found for this customer. Ask the colleague which routes and volumes to use."}
+    sub_markup = terms.subcontractor_markup_pct
     month = args.get("first_month") or f"{year}-01"
-    lines, reasoning, notes = [], [], []
-    known = []
-    for raw in args["lines"]:
-        o, d, loads = raw["origin"], raw["destination"], int(raw["loads"])
+    wanted = int(args.get("loads_per_month") or 0)
+    base_routes = [(r["origin"], r["destination"], int(r["loads_per_month"])) for r in terms.routes]
+    contract_destinations = {d.lower() for _, d, _ in base_routes}
+    new = [d.strip() for d in args.get("new_destinations") or [] if d.strip() and d.strip().lower() not in contract_destinations]
+    rest = max(0, wanted - sum(l for *_, l in base_routes)) if wanted else 0
+    origin = base_routes[0][0] if base_routes else "Dortmund"
+    plan = list(base_routes)
+    for i, d in enumerate(new):
+        share = rest // len(new) + (1 if i < rest % len(new) else 0)
+        if share:
+            plan.append((origin, d, share))
+    lines, reasoning, notes, known = [], [], [], []
+    for o, d, loads in plan:
         p = env.erp.prices([(o, d)], year - 1)[0]
         if p.price is not None:
             rate = round(p.price * (1 + markup / 100))
@@ -172,27 +183,29 @@ async def create_quote(env: ToolEnv, args: dict):
                 )
     if known:
         reasoning.insert(0, f"{' and '.join(known)}: contract prices {year - 1} from the ERP, plus {markup:g} % as requested.")
+    if wanted and sum(l["loads"] for l in lines) != wanted:
+        notes.append(f"The customer asked for {wanted} loads a month, the contract routes alone already have more. Check the volumes.")
+    customer = terms.customer
+    short = customer.replace(" GmbH", "")
     data = {
-        "customer": args.get("customer", ""),
+        "customer": customer,
         "year": year,
         "markup_pct": markup,
         "lines": lines,
-        "total_per_month": 0,
+        "total_per_month": quote_total(lines),
         "note": " ".join(notes),
         "reasoning": reasoning,
-        "greeting_name": args.get("greeting_name", ""),
+        "greeting_name": (args.get("greeting_name") or "").split(" ")[0],
+        "pdf_name": f"Quote {year} {short}.pdf",
     }
-    data["total_per_month"] = quote_total(lines)
     data["draft_text"] = quote_draft_text(data)
-    data["pdf_name"] = f"Quote {year} {data['customer'].replace(' GmbH', '')}.pdf".strip()
     sources = ["Prices from the ERP"]
     if "dispatch" in env.used:
         sources.append("Capacity from dispatch")
-    if terms:
-        sources.append(f"Terms from the {terms.contract.lower()}")
+    sources.append(f"Terms from the {terms.contract.lower()}")
     w = WorkResult(
         channel_id=env.channel.id, agent_id=env.agent.agent_id, run_id=env.run_id, kind="quote",
-        title=f"Quote {data['customer'].replace(' GmbH', '')} {year}", data=data, sources=sources,
+        title=f"Quote {short} {year}", data=data, sources=sources,
         answers_message_ids=env.resolve(args.get("answers")),
     )
     env.session.add(w)
@@ -245,7 +258,7 @@ async def calculate_payment_terms(env: ToolEnv, args: dict):
     cost = outstanding * rate / 100
     share = cost / yearly * 100 if yearly else 0
     surcharge = math.ceil(share * 10) / 10
-    name = args.get("greeting_name", "")
+    name = (args.get("greeting_name") or "").split(" ")[0]
     hi = f"Hi {name}," if name else "Hi,"
     data = {
         "current_days": cur,

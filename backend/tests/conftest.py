@@ -225,10 +225,8 @@ def default_script(system, turns, tools):
             src = _labels(text, "40 loads")
             return LLMResponse(text="", tool_calls=[ToolCall("t3", "create_quote", {
                 "customer": "Hollmann Bau GmbH", "year": 2027, "markup_pct": 3, "first_month": "2027-01",
-                "lines": [{"origin": "Dortmund", "destination": "Hamm", "loads": 18},
-                          {"origin": "Dortmund", "destination": "Münster", "loads": 14},
-                          {"origin": "Dortmund", "destination": "Erfurt", "loads": 8}],
-                "answers": [l for l in src if l][:1], "greeting_name": "Sarah"})])
+                "loads_per_month": 40, "new_destinations": ["Erfurt"],
+                "answers": [l for l in src if l][:1], "greeting_name": "Sarah Hollmann"})])
         return LLMResponse(text="The draft is ready. Check Erfurt before it goes out.", tool_calls=[])
     return LLMResponse(text="Summary: Tours for tomorrow are set.", tool_calls=[])
 

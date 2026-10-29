@@ -14,5 +14,10 @@ system: |
   decided (a decision someone made), open (a question nobody answered yet), committed (someone promised to do something).
   Each entry has a short text in English, an owner (first name) if any, a due label like "by Friday" if any,
   and the label of the source message (like m3).
+  How to tell them apart:
+  - A customer request a colleague promised to handle is committed, owned by that colleague, e.g. "Quote to Sarah by Friday".
+  - A colleague's instruction on how to do it is decided, e.g. "Prices 2027 are prices 2026 plus 3 %".
+  - A customer question nobody answered yet is open, e.g. "45 day payment terms for Hollmann?".
+  Keep texts under 12 words. Use first names.
   Do not repeat entries that already exist in Memory. If a newer message answers an open entry or fulfils a promise,
   list that entry id in "resolve". If nothing is worth recording, call record_memory with empty lists.

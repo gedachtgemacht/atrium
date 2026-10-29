@@ -1,43 +1,47 @@
 # Atrium
 
-Selbst gehostete Firmen-Kollaboration. Kunden und Partner sind per Link in geteilten Kanälen dabei, KI-Agenten arbeiten nur im internen Hinterzimmer daneben. Plan und Architektur: `docs/PLAN.md`. Gestaltungsvorlage (Ansatz, nicht Pixelvorgabe): `docs/mockup.html`.
+Self hosted team chat for companies. Customers and partners join shared channels by link; AI agents work only in an internal backroom next to them. Architecture and decisions: `docs/PLAN.md`. Visual reference (a starting point, not a pixel spec): `docs/mockup.html`.
 
-## Die Wand: nicht verhandelbar
+## The wall: not negotiable
 
-Diese Regeln werden im Backend erzwungen, nie nur in der UI.
+These rules are enforced in the backend, never only in the UI.
 
-1. Agenten haben keinen Lesezugriff auf geteilte Kanäle. Das gilt für jeden Weg: Nachrichten-API, Suche, WebSocket, Gedächtnis, "Frag das Hinterzimmer" und den Kontext für LLM-Aufrufe.
-2. In geteilten Kanälen schreiben nur Menschen. Die API lehnt Nachrichten von Agenten dort ab (403).
-3. Eine Kundennachricht kommt nur ins Hinterzimmer, wenn ein interner Mensch sie aktiv reinholt. Das erzeugt eine Kopie im Hinterzimmer und einen Audit-Eintrag (wer, wann, welche Nachricht).
-4. Agenten erzeugen nur Entwürfe. Ein Entwurf landet im Nachrichtenfeld eines Menschen im geteilten Kanal. Gesendet wird er nur durch dessen Klick, und die Nachricht hat diesen Menschen als Autor.
-5. Gäste sehen nichts Internes: kein Hinterzimmer, keine Agenten, keine Entwürfe, keinen Hinweis "ins Hinterzimmer geholt", keine interne Herkunft einer Nachricht. Gäste haben eigene Antwort-Schemas (`backend/atrium/guest/schemas.py`), nicht dieselben Schemas mit ausgeblendeten Feldern.
-6. Räume speichern keine Anwesenheit. Wer wann in welchem Raum war, wird nirgends gespeichert oder geloggt. Notizen laufen nur, wenn jemand im Raum sie einschaltet. Alle im Raum sehen das, und ohne Notizen wird nichts aufgezeichnet.
-7. Jeder LLM-Aufruf wird protokolliert: Agent, Auslöser, welche Nachrichten-IDs im Kontext waren, Anbieter, Zeitpunkt.
+1. Agents cannot read shared channels. On every path: message API, search, WebSocket, memory, "Ask the backroom" and the context of LLM calls.
+2. Only people write in shared channels. The API rejects agent messages there (403).
+3. A customer message reaches the backroom only when an internal person actively pulls it in. That creates a copy in the backroom and an audit entry (who, when, which message).
+4. Agents only create drafts. A draft lands in one person's composer in the shared channel. It is sent only by that person's click, and the message has that person as author.
+5. Guests see nothing internal: no backroom, no agents, no drafts, no "pulled into the backroom" marker, no internal origin of a message. Guests have their own response schemas (`backend/atrium/guest/schemas.py`), not the internal schemas with fields hidden.
+6. Rooms store no presence. Who was in which room when is never stored or logged. Notes run only when someone in the room turns them on, everyone in the room sees that, and without notes nothing is recorded.
+7. Every LLM call is logged: agent, trigger, which message ids were in the context, provider, time.
 
-### Wo die Wand im Code steht
+### Where the wall lives in the code
 
-- Zugriffsregeln stehen nur in `backend/atrium/policy.py`. Jeder Lesepfad (REST, Suche, WebSocket-Fanout, Gedächtnis, Frag-das-Hinterzimmer, Agenten-Kontext) geht über die Query-Filter und Prüfungen dort. Keine eigene Zugriffslogik in Routen oder Services.
-- Der LLM-Client nimmt Kontext nur als `BuiltContext` aus `backend/atrium/llm/context.py` (`ContextBuilder`). Der Builder nimmt ausschließlich Nachrichten aus internen Kanälen an und wirft sonst `WallViolation`.
-- Anbieter-Logik (Anthropic, OpenAI-kompatibel) liegt nur in `backend/atrium/llm/providers/`.
-- Raum-Anwesenheit lebt nur im Speicher (`backend/atrium/rooms/presence.py`). Kein Datenbankobjekt, kein Log-Eintrag, keine HTTP-Route mit Raum und Person im Pfad.
+- Access rules live only in `backend/atrium/policy.py`. Every read path (REST, search, WebSocket fanout, memory, ask, agent context) builds its queries from there. No access logic in routes or services.
+- The LLM client takes context only as a `BuiltContext` from `backend/atrium/llm/context.py` (`ContextBuilder`). The builder accepts only messages from internal channels inside the agent's scope and raises `WallViolation` otherwise.
+- Provider specific code (Anthropic, OpenAI compatible) lives only in `backend/atrium/llm/providers/`.
+- Room presence lives only in memory (`backend/atrium/rooms/presence.py`) and travels only over the WebSocket. No table, no log line, no HTTP route for joining.
+- The guest frontend (`frontend/src/guest/`) is a separate bundle and must not import anything from `frontend/src/app/`.
 
-### Pflicht-Tests der Wand (`backend/tests/wall/`)
+### Mandatory wall tests (`backend/tests/wall/`)
 
-- Kanarien-Test: `KANARIE-7f3a` im geteilten Kanal, danach jeder Agenten-Pfad. Der Fake-LLM-Client zeichnet alle Payloads auf, der Text darf nirgends auftauchen. Erst nach dem Reinholen durch einen Menschen darf er auftauchen.
-- Agent schreibt in geteilten Kanal: 403.
-- Keine Route der Gast-API liefert interne Felder oder Hinterzimmer-Inhalte.
-- Nach einem Raumbesuch existiert kein Datensatz über die Anwesenheit.
+- Canary test: `KANARIE-7f3a` in the shared channel, then every agent path. The fake LLM records all payloads; the text must not show up anywhere. Only after a person pulls it in may it appear.
+- An agent writing into a shared channel gets 403.
+- No route of the guest API returns internal fields or backroom content.
+- After a room visit no record of the presence exists.
+- Access rules live in one place (AST check).
 
-Diese Tests werden nie abgeschwächt, übersprungen, mit `xfail` markiert oder umgebaut, um etwas grün zu bekommen. Schlägt einer fehl, ist der Code falsch, nicht der Test. Neue Lesepfade oder Agenten-Auslöser bekommen einen Eintrag im Kanarien-Test.
+These tests are never weakened, skipped, marked `xfail` or rewritten to get something green. If one fails, the code is wrong, not the test. Every new read path or agent trigger gets an entry in the canary test.
 
-## Tests
+## Running and testing
 
-- Tests laufen nie gegen echte Zugangsdaten. `conftest.py` leert alle LLM-Keys und sperrt ausgehendes Netz. LLM nur über den Fake-Client.
-- Backend: `pytest` gegen eine eigene Test-Datenbank. Frontend-Abläufe: Playwright.
+- Backend: `cd backend && uv run pytest` (needs the local Postgres from the README; tests use the `atrium_test` database).
+- End to end: `cd frontend && npx playwright test` (uses the `atrium_e2e` database and the fake LLM).
+- Tests never run against real credentials. `tests/conftest.py` clears all LLM keys and blocks outgoing network; the LLM is always the fake provider.
 
-## Konventionen
+## Conventions
 
-- UI-Texte auf Deutsch, kurz, Du-Form, keine Gedankenstriche.
-- Formsprache: Kreis = Mensch, gestrichelter Kreis = Gast, Quadrat = Agent.
-- Kein Tracking, keine Analytics, keine externen Skripte oder CDNs. Schriften liegen lokal.
-- Abhängigkeiten klein halten, jede neue in `docs/PLAN.md` begründen.
+- UI text in English: short, casual, addressing the reader as "you", no dashes.
+- Shapes: circle = person, dashed circle = guest, square = agent.
+- No tracking, no analytics, no external scripts or CDNs. Fonts are bundled.
+- Keep dependencies few; justify each new one in `docs/PLAN.md`.
+- License: AGPL-3.0-or-later.

@@ -25,6 +25,8 @@ class Settings(BaseSettings):
     openai_compat_base_url: str = ""
     openai_compat_api_key: str = ""
     openai_compat_model: str = ""
+    # Sent as reasoning_effort, e.g. "none" to switch off slow thinking on local models. Empty = not sent.
+    openai_compat_reasoning: str = ""
 
     # Voice
     livekit_url: str = ""

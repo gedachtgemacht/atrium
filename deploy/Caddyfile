@@ -1,0 +1,13 @@
+{$ATRIUM_DOMAIN} {
+	encode zstd gzip
+	# No access log: it would record who connected when.
+	log {
+		output discard
+	}
+	handle_path /livekit/* {
+		reverse_proxy livekit:7880
+	}
+	handle {
+		reverse_proxy app:8000
+	}
+}

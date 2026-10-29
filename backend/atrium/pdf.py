@@ -21,8 +21,8 @@ def quote_pdf(data: dict, org_name: str, sender_name: str) -> bytes:
     loads = sum(l["loads"] for l in data["lines"])
     # The agent's note (own trucks vs. subcontractor) is internal and stays out of the customer document.
     html = f"""<!doctype html><html><head><meta charset=utf-8><style>
-@font-face {{ font-family: Hanken; src: url('file://{fonts}/hanken-grotesk-latin.woff2'); font-weight: 100 900; }}
-@font-face {{ font-family: Bricolage; src: url('file://{fonts}/bricolage-grotesque-latin.woff2'); font-weight: 200 800; }}
+@font-face {{ font-family: Hanken; src: url('file://{fonts}/hanken-grotesk-latin.woff2'); }}
+@font-face {{ font-family: Bricolage; src: url('file://{fonts}/bricolage-grotesque-latin.woff2'); }}
 @page {{ size: A4; margin: 22mm 20mm; @bottom-left {{ content: "{escape(org_name)}"; font: 9pt Hanken, sans-serif; color: #5B6773; }} }}
 body {{ font: 10.5pt/1.5 Hanken, sans-serif; color: #1C2430; }}
 h1 {{ font-family: Bricolage, sans-serif; font-size: 22pt; margin: 0 0 4pt; letter-spacing: -.01em; }}

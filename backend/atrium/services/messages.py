@@ -45,7 +45,7 @@ async def post_message(
     body: str,
     *,
     attachment_ids: list[uuid.UUID] | None = None,
-    draft_id: uuid.UUID | None = None,
+    draft_ids: list[uuid.UUID] | None = None,
 ) -> Message:
     policy.assert_can_post(actor, channel)
     body = (body or "").strip()
@@ -67,17 +67,18 @@ async def post_message(
     if attachment_ids:
         has_files = await _claim_uploads(session, actor, msg, attachment_ids)
 
-    draft = None
-    if draft_id is not None:
+    drafts = []
+    for draft_id in dict.fromkeys(draft_ids or []):
         draft = await _send_draft(state, session, actor, channel, msg, draft_id)
         has_files = has_files or bool(draft.attachments)
+        drafts.append(draft)
 
     if not body and not has_files:
         raise HTTPException(400, "Message is empty")
     await session.commit()
 
     await publish_message(state, session, channel, msg)
-    if draft is not None:
+    for draft in drafts:
         await _after_draft_sent(state, session, actor, channel, draft)
     if isinstance(actor, UserActor) and channel.kind != ChannelKind.shared:
         schedule_followups(state, channel, msg, actor)
@@ -228,7 +229,7 @@ async def _send_draft(state, session, actor, channel: Channel, msg: Message, dra
     for a in list(draft.attachments):
         a.message_id = msg.id
         a.draft_id = None
-    msg.from_draft_id = draft.id
+    msg.from_draft_id = msg.from_draft_id or draft.id
     draft.status = DraftStatus.sent
     draft.sent_message_id = msg.id
     draft.sent_at = utcnow()

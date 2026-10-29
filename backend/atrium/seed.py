@@ -154,6 +154,7 @@ async def seed(db: Database, *, password: str, base_url: str, reset: bool = Fals
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--reset", action="store_true")
+    ap.add_argument("--json", help="also write the result (password, emails, guest links) to this file")
     args = ap.parse_args()
     settings = get_settings()
     password = os.environ.get("ATRIUM_SEED_PASSWORD", "atrium-demo")
@@ -167,6 +168,11 @@ def main() -> None:
         if not out:
             print("Database already has data. Use --reset to start over.")
             return
+        if args.json:
+            import json
+
+            with open(args.json, "w") as f:
+                json.dump(out, f)
         print(f"Signed in as anyone below with password {out['password']!r}:")
         for e in out["emails"]:
             print("  ", e)

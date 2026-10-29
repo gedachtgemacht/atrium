@@ -24,7 +24,7 @@ from ..models import (
     Room,
     User,
 )
-from ..schemas import ChannelOut, GuestInfoOut, MemberOut, MessageOut
+from ..schemas import ChannelOut, GuestInfoOut, MemberOut, MessageOut, PersonOut
 from ..security import hash_token, new_token
 from ..serialize import attachment_out, initials, messages_out
 from ..services import messages as svc
@@ -74,6 +74,13 @@ async def channel_out(session, actor: UserActor, ch: Channel, *, detail: bool = 
         room = (await session.execute(select(Room).where(Room.channel_id == ch.id))).scalar_one_or_none()
         out.room_name = room.name if room else ""
     return out
+
+
+@router.get("/users", response_model=list[PersonOut])
+async def people(actor: UserActor = Depends(current_user), session: AsyncSession = Depends(get_session)):
+    """Directory of colleagues, for avatars in rooms and channel member pickers."""
+    rows = (await session.execute(select(User).where(User.org_id == actor.org_id, User.is_active.is_(True)).order_by(User.name))).scalars()
+    return [PersonOut(id=u.id, name=u.name, initials=u.initials, tone=u.tone, role_label=u.role_label) for u in rows]
 
 
 @router.get("/channels", response_model=list[ChannelOut])
@@ -148,6 +155,8 @@ async def list_messages(channel_id: uuid.UUID, before: datetime | None = None, a
 class MessageIn(BaseModel):
     body: str = ""
     attachment_ids: list[uuid.UUID] = []
+    # Agent drafts this message sends. The person is the author; the drafts only travel along.
+    draft_ids: list[uuid.UUID] = []
     draft_id: uuid.UUID | None = None
 
 
@@ -155,7 +164,8 @@ class MessageIn(BaseModel):
 async def post_message(channel_id: uuid.UUID, body: MessageIn, actor: UserActor = Depends(current_user),
                        session: AsyncSession = Depends(get_session), state: AppState = Depends(get_state)):
     ch = await policy.get_channel(session, actor, channel_id)
-    msg = await svc.post_message(state, session, actor, ch, body.body, attachment_ids=body.attachment_ids, draft_id=body.draft_id)
+    msg = await svc.post_message(state, session, actor, ch, body.body, attachment_ids=body.attachment_ids,
+                                 draft_ids=body.draft_ids + ([body.draft_id] if body.draft_id else []))
     msg = await policy.get_message(session, actor, msg.id)
     [out] = await messages_out(session, actor, [msg], partner_name=ch.partner_name, permissions=state.agent_permissions)
     return out

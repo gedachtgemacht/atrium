@@ -113,6 +113,8 @@ async def run_mention(state, cfg: AgentConfig, channel_id: uuid.UUID, trigger_id
             builder = ContextBuilder(session, actor, "mention").system(system_prompt(cfg, org))
             await builder.add_messages(history, heading="Backroom messages, oldest first:" if channel.kind.value == "backroom" else "Channel messages, oldest first:")
             await builder.add_memory(await policy.channel_memory(session, actor, channel_id))
+            if channel.kind.value == "backroom" and channel.partner_name:
+                builder.add_text("", f"This backroom sits next to the customer channel with {channel.partner_name}.")
             trigger = next((m for m in history if m.id == trigger_id), None)
             if trigger is not None:
                 builder.add_text("", f"You were mentioned in {builder.label(trigger.id)}. Do what it asks.")

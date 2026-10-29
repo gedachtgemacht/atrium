@@ -1,0 +1,67 @@
+# Atrium on one Linux server: app, PostgreSQL, LiveKit (voice) and Caddy (TLS).
+#   cp .env.example .env   # fill it in
+#   docker compose -f deploy/docker-compose.yml --env-file .env up -d --build
+name: atrium
+
+services:
+  db:
+    image: docker.io/library/postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: atrium
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: atrium
+    volumes:
+      - db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U atrium"]
+      interval: 5s
+      retries: 10
+
+  app:
+    build:
+      context: ..
+      args:
+        WITH_NOTES: ${WITH_NOTES:-1}
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: ../.env
+    environment:
+      ATRIUM_DATABASE_URL: postgresql+psycopg://atrium:${POSTGRES_PASSWORD}@db:5432/atrium
+      ATRIUM_BASE_URL: https://${ATRIUM_DOMAIN}
+      ATRIUM_COOKIE_SECURE: "true"
+      ATRIUM_LIVEKIT_URL: wss://${ATRIUM_DOMAIN}/livekit
+      HF_HOME: /data/models
+    volumes:
+      - data:/data
+
+  livekit:
+    image: docker.io/livekit/livekit-server:v1.9
+    restart: unless-stopped
+    command: ["--config", "/etc/livekit.yaml"]
+    environment:
+      LIVEKIT_KEYS: "${ATRIUM_LIVEKIT_API_KEY}: ${ATRIUM_LIVEKIT_API_SECRET}"
+    volumes:
+      - ./livekit.yaml:/etc/livekit.yaml:ro
+    ports:
+      - "7881:7881/tcp"
+      - "50000-50100:50000-50100/udp"
+
+  caddy:
+    image: docker.io/library/caddy:2
+    restart: unless-stopped
+    environment:
+      ATRIUM_DOMAIN: ${ATRIUM_DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy:/data
+
+volumes:
+  db:
+  data:
+  caddy:

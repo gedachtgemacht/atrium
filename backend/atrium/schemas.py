@@ -105,6 +105,14 @@ class ChannelOut(Out):
     room_name: str = ""
 
 
+class PersonOut(Out):
+    id: uuid.UUID
+    name: str
+    initials: str
+    tone: str
+    role_label: str
+
+
 class MeOut(Out):
     id: uuid.UUID
     name: str

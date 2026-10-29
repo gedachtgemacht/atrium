@@ -23,6 +23,7 @@ def make_provider(settings: Settings, name: str | None = None) -> Provider:
             settings.openai_compat_base_url,
             settings.openai_compat_api_key,
             settings.openai_compat_model or settings.llm_model,
+            settings.openai_compat_reasoning,
         )
     if name == "fake":
         from .providers.fake import FakeProvider

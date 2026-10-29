@@ -10,10 +10,11 @@ from ..base import LLMResponse, ProviderError, ToolCall, ToolSpec, Turn
 class OpenAICompatProvider:
     name = "openai_compat"
 
-    def __init__(self, base_url: str, api_key: str, model: str):
+    def __init__(self, base_url: str, api_key: str, model: str, reasoning: str = ""):
         if not base_url:
             raise ProviderError("ATRIUM_OPENAI_COMPAT_BASE_URL is not set")
         self.model = model
+        self._reasoning = reasoning
         self._url = base_url.rstrip("/") + "/chat/completions"
         self._headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
 
@@ -46,6 +47,8 @@ class OpenAICompatProvider:
         }
         if not tools:
             body.pop("tools")
+        if self._reasoning:
+            body["reasoning_effort"] = self._reasoning
         try:
             async with httpx.AsyncClient(timeout=300) as client:
                 r = await client.post(self._url, json=body, headers=self._headers)
